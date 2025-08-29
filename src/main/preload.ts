@@ -22,6 +22,7 @@ const electronHandler = {
       ipcRenderer.once(channel, (_event, ...args) => func(...args));
     },
   },
+  openVideoFile: () => ipcRenderer.invoke('open-video-file'),
 };
 
 contextBridge.exposeInMainWorld('electron', electronHandler);

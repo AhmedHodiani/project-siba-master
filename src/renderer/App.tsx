@@ -14,6 +14,19 @@ function VideoPlayerUI() {
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => setUrl(e.target.value);
 
+  const handleLoadVideoFile = async () => {
+    try {
+      const filePath = await window.electron.openVideoFile();
+      if (filePath) {
+        // Convert file path to file:// URL for video element
+        const fileUrl = `file://${filePath}`;
+        setUrl(fileUrl);
+      }
+    } catch (error) {
+      console.error('Error loading video file:', error);
+    }
+  };
+
   const togglePlay = () => {
     if (videoRef.current) {
       if (playing) {
@@ -154,6 +167,13 @@ function VideoPlayerUI() {
           placeholder="Enter video URL..."
           className="url-field"
         />
+        <button
+          type="button"
+          onClick={handleLoadVideoFile}
+          className="load-file-btn"
+        >
+          Load Video File
+        </button>
       </div>
     </div>
   );

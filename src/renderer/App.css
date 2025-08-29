@@ -301,10 +301,13 @@ body {
   margin-top: 40px;
   width: 100%;
   max-width: 1000px;
+  display: flex;
+  gap: 16px;
+  align-items: stretch;
 }
 
 .url-field {
-  width: 100%;
+  flex: 1;
   padding: 18px 24px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 0px;
@@ -318,6 +321,52 @@ body {
   box-shadow: 
     0 8px 25px rgba(0, 0, 0, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.load-file-btn {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.1) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 18px 32px;
+  cursor: pointer;
+  border-radius: 0px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #ffffff;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  white-space: nowrap;
+  backdrop-filter: blur(20px);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.load-file-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.load-file-btn:hover::before {
+  left: 100%;
+}
+
+.load-file-btn:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.15) 100%);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3);
+}
+
+.load-file-btn:active {
+  transform: translateY(0);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
 }
 
 .url-field:focus {
@@ -367,6 +416,15 @@ body {
   .custom-controls {
     border-bottom-left-radius: 12px;
     border-bottom-right-radius: 12px;
+  }
+  
+  .url-input {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .load-file-btn {
+    padding: 16px 24px;
   }
 }
 
