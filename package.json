@@ -102,12 +102,15 @@
   },
   "dependencies": {
     "@electron/notarize": "^3.0.0",
+    "@vidstack/react": "^0.6.15",
     "electron-debug": "^4.1.0",
     "electron-log": "^5.3.2",
     "electron-updater": "^6.3.9",
+    "maverick.js": "^0.37.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-router-dom": "^7.3.0"
+    "react-router-dom": "^7.3.0",
+    "vidstack": "^0.6.15"
   },
   "devDependencies": {
     "@electron/rebuild": "^3.7.1",
