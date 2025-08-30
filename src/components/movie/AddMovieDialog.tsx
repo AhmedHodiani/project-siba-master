@@ -14,7 +14,7 @@ interface VideoFrameData {
   duration: number;
 }
 
-export default function AddMovieDialog({
+export function AddMovieDialog({
   onClose,
   onMovieAdded,
 }: AddMovieDialogProps) {

@@ -1,16 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { MovieRecord, CreateMovieData } from '@/types/database';
+import { useNavigate } from 'react-router-dom';
+import { MovieRecord } from '@/lib/types/database';
 import { MovieCard } from '@/components/movie/MovieCard';
 import { AddMovieDialog } from '@/components/movie/AddMovieDialog';
 import { Button } from '@/components/ui/Button';
-import pocketBaseService from '@/services/pocketbase';
+import pocketBaseService from '@/lib/services/pocketbase';
 import './HomeScreen.css';
 
-interface HomeScreenProps {
-  onPlayMovie: (movie: MovieRecord) => void;
-}
-
-export function HomeScreen({ onPlayMovie }: HomeScreenProps) {
+export function HomeScreen() {
+  const navigate = useNavigate();
   const [movies, setMovies] = useState<MovieRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,13 +78,13 @@ export function HomeScreen({ onPlayMovie }: HomeScreenProps) {
     try {
       // Update last accessed
       await pocketBaseService.updateLastAccessed(movie.id);
-      onPlayMovie(movie);
+      navigate(`/movie/${movie.id}`);
     } catch (err) {
       console.error('Error updating movie access:', err);
       // Still play the movie even if update fails
-      onPlayMovie(movie);
+      navigate(`/movie/${movie.id}`);
     }
-  }, [onPlayMovie]);
+  }, [navigate]);
 
   // Delete movie
   const handleDeleteMovie = useCallback(async (movie: MovieRecord) => {

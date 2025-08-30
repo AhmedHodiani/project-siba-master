@@ -116,17 +116,16 @@ export function MovieCard({
             )}
           </div>
         )}
-      </div>
-
-      <div className="movie-card-footer">
-        <Button
-          onClick={() => onPlay(movie)}
-          variant="primary"
-          className="play-btn"
-          disabled={hasFileIssues}
-        >
-          {movie.last_position > 0 ? 'Resume' : 'Play'}
-        </Button>
+        <div className="movie-card-footer">
+          <Button
+            onClick={() => onPlay(movie)}
+            variant="primary"
+            className="play-btn"
+            disabled={hasFileIssues}
+          >
+            {movie.last_position > 0 ? 'Resume' : 'Play'}
+          </Button>
+        </div>
       </div>
     </div>
   );

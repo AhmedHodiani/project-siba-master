@@ -63,7 +63,7 @@ export function SubtitleSettings({
             ✕
           </Button>
         </div>
-        
+
         <div className="subtitle-settings-content">
           {!subtitlesLoaded ? (
             <div className="no-subtitles-message">
@@ -92,14 +92,6 @@ export function SubtitleSettings({
                   >
                     -0.5s
                   </Button>
-                  <Button
-                    onClick={() => adjustDelay(-0.1)}
-                    variant="primary"
-                    size="small"
-                    className="delay-btn"
-                  >
-                    -0.1s
-                  </Button>
                   <input
                     type="number"
                     value={subtitleDelay.toFixed(1)}
@@ -109,14 +101,6 @@ export function SubtitleSettings({
                     max="10"
                     className="delay-input"
                   />
-                  <Button
-                    onClick={() => adjustDelay(0.1)}
-                    variant="primary"
-                    size="small"
-                    className="delay-btn"
-                  >
-                    +0.1s
-                  </Button>
                   <Button
                     onClick={() => adjustDelay(0.5)}
                     variant="primary"
@@ -134,7 +118,7 @@ export function SubtitleSettings({
                     +1s
                   </Button>
                 </div>
-                
+
                 <div className="delay-slider-container">
                   <input
                     type="range"
@@ -151,7 +135,7 @@ export function SubtitleSettings({
                     <span>+5s</span>
                   </div>
                 </div>
-                
+
                 <Button
                   onClick={resetDelay}
                   variant="secondary"
@@ -161,7 +145,7 @@ export function SubtitleSettings({
                   Reset to 0
                 </Button>
               </div>
-              
+
               <div className="setting-group">
                 <label className="setting-label" htmlFor="subtitle-size">
                   Subtitle Size
@@ -180,7 +164,7 @@ export function SubtitleSettings({
                   <span className="size-display">{subtitleSize}px</span>
                 </div>
               </div>
-              
+
               <div className="setting-group">
                 <label className="setting-label" htmlFor="subtitle-position">
                   Subtitle Position
@@ -195,14 +179,15 @@ export function SubtitleSettings({
                   <option value="below">Below Video</option>
                 </select>
               </div>
-              
+
               <div className="setting-info">
                 <p className="info-text">
-                  Adjust the subtitle timing to sync with the video.
-                  Positive values delay subtitles, negative values advance them.
+                  Adjust the subtitle timing to sync with the video. Positive
+                  values delay subtitles, negative values advance them.
                 </p>
                 <p className="info-text keyboard-shortcuts">
-                  <strong>Keyboard shortcuts:</strong> Press "1" to go to previous subtitle, "2" to go to next subtitle
+                  <strong>Keyboard shortcuts:</strong> Press "1" to go to
+                  previous subtitle, "2" to go to next subtitle
                 </p>
               </div>
             </>
