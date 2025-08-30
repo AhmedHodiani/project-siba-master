@@ -15,6 +15,7 @@ export interface MovieRecord extends BaseRecord {
   duration?: number;
   date_added: string;
   last_accessed: string;
+  thumbnail?: string; // Base64 encoded image or file path
 }
 
 // Type for creating new movies (without auto-generated fields)
@@ -23,6 +24,7 @@ export interface CreateMovieData {
   mp4_path: string;
   srt_path?: string;
   duration?: number;
+  thumbnail?: string;
   // Note: srt_delay and last_position are automatically set to 0 on creation
 }
 

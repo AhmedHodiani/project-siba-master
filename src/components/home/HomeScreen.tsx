@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { MovieRecord, CreateMovieData } from '../../types/database';
 import { MovieCard } from '../movie/MovieCard';
+import { AddMovieDialog } from '../movie/AddMovieDialog';
 import { Button } from '../ui/Button';
 import pocketBaseService from '../../services/pocketbase';
 import './HomeScreen.css';
@@ -15,7 +16,10 @@ export function HomeScreen({ onPlayMovie, onClose }: HomeScreenProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [fileValidations, setFileValidations] = useState<Record<string, { mp4Exists: boolean; srtExists: boolean }>>({});
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [fileValidations, setFileValidations] = useState<
+    Record<string, { mp4Exists: boolean; srtExists: boolean }>
+  >({});
 
   // Load movies from PocketBase
   const loadMovies = useCallback(async () => {
@@ -66,51 +70,10 @@ export function HomeScreen({ onPlayMovie, onClose }: HomeScreenProps) {
     }
   }, [loadMovies]);
 
-  // Add new movie
-  const handleAddMovie = useCallback(async () => {
-    try {
-      // Open video file dialog
-      const videoPath = await window.electron.openVideoFile();
-      if (!videoPath) return;
-
-      // Check if movie already exists
-      const existingMovie = await pocketBaseService.getMovieByPath(videoPath);
-      if (existingMovie) {
-        alert('This movie is already in your library.');
-        return;
-      }
-
-      // Extract title from filename
-      const filename = videoPath.split('/').pop() || 'Unknown Movie';
-      const title = filename.replace(/\.[^/.]+$/, ''); // Remove extension
-
-      // Optionally ask for subtitle file
-      const shouldAddSubtitle = confirm('Would you like to add a subtitle file?');
-      let subtitlePath: string | undefined;
-      
-      if (shouldAddSubtitle) {
-        subtitlePath = await window.electron.openSubtitleFile();
-      }
-
-      // Create movie data
-      const movieData: CreateMovieData = {
-        title,
-        mp4_path: videoPath,
-        srt_path: subtitlePath,
-        srt_delay: 0,
-        last_position: 0,
-      };
-
-      // Save to database
-      await pocketBaseService.createMovie(movieData);
-      
-      // Reload movies
-      loadMovies();
-      
-    } catch (err) {
-      console.error('Error adding movie:', err);
-      alert('Failed to add movie. Please try again.');
-    }
+  // Handle movie added through dialog
+  const handleMovieAdded = useCallback(() => {
+    setShowAddDialog(false);
+    loadMovies();
   }, [loadMovies]);
 
   // Play movie
@@ -168,14 +131,6 @@ export function HomeScreen({ onPlayMovie, onClose }: HomeScreenProps) {
       <div className="home-header">
         <div className="header-top">
           <h1 className="home-title">Movie Library</h1>
-          <Button
-            onClick={onClose}
-            variant="secondary"
-            size="small"
-            className="close-btn"
-          >
-            ✕
-          </Button>
         </div>
         
         <div className="header-controls">
@@ -190,11 +145,11 @@ export function HomeScreen({ onPlayMovie, onClose }: HomeScreenProps) {
           </div>
           
           <Button
-            onClick={handleAddMovie}
+            onClick={() => setShowAddDialog(true)}
             variant="primary"
             className="add-movie-btn"
           >
-            ➕ Add Movie
+            Add Movie
           </Button>
         </div>
       </div>
@@ -228,7 +183,7 @@ export function HomeScreen({ onPlayMovie, onClose }: HomeScreenProps) {
             ) : (
               <>
                 <p>No movies in your library yet.</p>
-                <Button onClick={handleAddMovie} variant="primary">
+                <Button onClick={() => setShowAddDialog(true)} variant="primary">
                   Add Your First Movie
                 </Button>
               </>
@@ -250,6 +205,13 @@ export function HomeScreen({ onPlayMovie, onClose }: HomeScreenProps) {
           </div>
         )}
       </div>
+
+      {showAddDialog && (
+        <AddMovieDialog
+          onClose={() => setShowAddDialog(false)}
+          onMovieAdded={handleMovieAdded}
+        />
+      )}
     </div>
   );
 }

@@ -11,38 +11,61 @@ class PocketBaseService {
   
   constructor(private url: string = 'http://127.0.0.1:8090') {}
 
-  private async getPocketBase(): Promise<PocketBase> {
+  async getPocketBase(): Promise<PocketBase> {
     if (!this.pb) {
-      const PocketBaseClass = (await import('pocketbase')).default;
-      this.pb = new PocketBaseClass(this.url);
+      const { default: PocketBase } = await import('pocketbase');
+      this.pb = new PocketBase('http://127.0.0.1:8090');
     }
     return this.pb;
+  }
+
+  // Helper function to get file URL
+  getFileUrl(collectionId: string, recordId: string, filename: string): string {
+    return `http://127.0.0.1:8090/api/files/${collectionId}/${recordId}/${filename}`;
   }
 
   // Movie CRUD operations
   async createMovie(data: CreateMovieData): Promise<MovieRecord> {
     const pb = await this.getPocketBase();
-    const movieData = {
-      title: data.title,
-      mp4_path: data.mp4_path,
-      srt_path: data.srt_path || '',
-      srt_delay: 0, // Always set to 0 on creation
-      last_position: 0, // Always set to 0 on creation
-      duration: data.duration ? Number(data.duration) : undefined,
+    
+    const createData: any = {
+      ...data,
+      srt_delay: 0,
+      last_position: 0,
     };
+
+    // Convert base64 thumbnail to File if provided
+    if (data.thumbnail && data.thumbnail.startsWith('data:image/')) {
+      try {
+        // Convert base64 to blob
+        const response = await fetch(data.thumbnail);
+        const blob = await response.blob();
+        
+        // Create File object
+        const thumbnailFile = new File([blob], `thumbnail_${Date.now()}.jpg`, {
+          type: 'image/jpeg'
+        });
+        
+        createData.thumbnail = thumbnailFile;
+      } catch (error) {
+        console.warn('Failed to convert thumbnail to file:', error);
+        // Remove thumbnail if conversion fails
+        delete createData.thumbnail;
+      }
+    }
     
     // Remove undefined values to avoid validation issues
-    Object.keys(movieData).forEach(key => {
-      if (movieData[key as keyof typeof movieData] === undefined) {
-        delete movieData[key as keyof typeof movieData];
+    Object.keys(createData).forEach(key => {
+      if (createData[key] === undefined) {
+        delete createData[key];
       }
     });
     
     try {
-      return await pb.collection(COLLECTIONS.MOVIES).create<MovieRecord>(movieData);
+      return await pb.collection('movies').create<MovieRecord>(createData);
     } catch (error: any) {
       console.error('PocketBase create error:', error);
-      console.error('Data sent:', movieData);
+      console.error('Data sent:', createData);
       throw error;
     }
   }

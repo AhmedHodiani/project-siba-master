@@ -2,17 +2,18 @@
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  padding: 20px;
+  border-radius: 0;
+  padding: 0;
   margin: 10px;
   min-width: 300px;
   max-width: 400px;
   transition: all 0.3s ease;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
 }
 
 .movie-card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-2px);
   border-color: rgba(255, 255, 255, 0.2);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
@@ -26,60 +27,134 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 15px;
+  padding: 15px 20px;
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .movie-title {
   color: #ffffff;
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
   margin: 0;
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-right: 10px;
+  margin-right: 15px;
+  letter-spacing: 0.5px;
 }
 
 .movie-card-actions {
   display: flex;
-  gap: 5px;
+  gap: 8px;
   flex-shrink: 0;
+}
+
+.movie-thumbnail {
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.thumbnail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.movie-card:hover .thumbnail-image {
+  transform: scale(1.05);
 }
 
 .edit-btn,
 .delete-btn {
-  min-width: 32px;
-  height: 32px;
-  padding: 4px;
+  min-width: auto;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.edit-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.delete-btn:hover {
+  background: rgba(255, 100, 100, 0.2);
+  border-color: rgba(255, 100, 100, 0.4);
 }
 
 .movie-info {
-  margin-bottom: 20px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
 }
 
 .movie-meta {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 12px;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .movie-meta span {
   display: flex;
   align-items: center;
-  gap: 4px;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 12px;
-  background: rgba(255, 255, 255, 0.1);
-  padding: 4px 8px;
-  border-radius: 8px;
-  backdrop-filter: blur(10px);
+  justify-content: space-between;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.duration {
-  color: #87CEEB;
+.movie-meta span:last-child {
+  border-bottom: none;
+}
+
+.duration::before {
+  content: "Duration";
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 400;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.date-added::before {
+  content: "Added";
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 400;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.has-subtitles::before {
+  content: "Subtitles";
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 400;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.has-subtitles::after {
+  content: "Available";
+  color: #4CAF50;
+  font-weight: 500;
 }
 
 .date-added {
@@ -91,44 +166,60 @@
 }
 
 .progress-section {
-  margin-top: 10px;
+  margin-top: 15px;
 }
 
 .progress-bar {
   width: 100%;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
   overflow: hidden;
-  margin-bottom: 5px;
+  margin-bottom: 8px;
 }
 
 .progress-fill {
   height: 100%;
   background: linear-gradient(90deg, #4CAF50, #45a049);
   transition: width 0.3s ease;
-  border-radius: 3px;
 }
 
 .progress-text {
   color: rgba(255, 255, 255, 0.7);
-  font-size: 11px;
+  font-size: 12px;
+  text-align: center;
 }
 
 .file-status {
-  margin-top: 10px;
+  margin-top: 15px;
+  padding: 10px;
+  background: rgba(255, 100, 100, 0.1);
+  border: 1px solid rgba(255, 100, 100, 0.2);
 }
 
 .file-error {
   display: block;
   color: #ff6b6b;
-  font-size: 11px;
-  margin: 2px 0;
+  font-size: 12px;
+  margin-bottom: 5px;
+}
+
+.file-error:last-child {
+  margin-bottom: 0;
 }
 
 .movie-card-footer {
-  display: flex;
-  justify-content: center;
+  padding: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.play-btn {
+  width: 100%;
+  height: 45px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
 .play-btn {

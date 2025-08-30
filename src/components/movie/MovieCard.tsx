@@ -1,6 +1,7 @@
 import React from 'react';
 import { MovieRecord } from '../../types/database';
 import { Button } from '../ui/Button';
+import pocketBaseService from '../../services/pocketbase';
 import './MovieCard.css';
 
 interface MovieCardProps {
@@ -58,7 +59,7 @@ export function MovieCard({
               size="small"
               className="edit-btn"
             >
-              ⚙️
+              ⚙
             </Button>
           )}
           {onDelete && (
@@ -68,19 +69,27 @@ export function MovieCard({
               size="small"
               className="delete-btn"
             >
-              🗑️
+              ×
             </Button>
           )}
         </div>
       </div>
 
+      {movie.thumbnail && (
+        <div className="movie-thumbnail">
+          <img 
+            src={pocketBaseService.getFileUrl('movies', movie.id, movie.thumbnail)}
+            alt={`${movie.title} thumbnail`}
+            className="thumbnail-image"
+          />
+        </div>
+      )}
+
       <div className="movie-info">
         <div className="movie-meta">
-          <span className="duration">⏱️ {formatDuration(movie.duration)}</span>
-          <span className="date-added">📅 {formatDate(movie.date_added)}</span>
-          {movie.srt_path && (
-            <span className="has-subtitles">💬 Subtitles</span>
-          )}
+          <span className="duration">{formatDuration(movie.duration)}</span>
+          <span className="date-added">{formatDate(movie.date_added)}</span>
+          {movie.srt_path && <span className="has-subtitles" />}
         </div>
 
         {movie.duration && movie.last_position > 0 && (
@@ -100,10 +109,10 @@ export function MovieCard({
         {hasFileIssues && (
           <div className="file-status">
             {!fileValidation.mp4Exists && (
-              <span className="file-error">❌ Video file not found</span>
+              <span className="file-error">Video file not found</span>
             )}
             {!fileValidation.srtExists && (
-              <span className="file-error">❌ Subtitle file not found</span>
+              <span className="file-error">Subtitle file not found</span>
             )}
           </div>
         )}
@@ -116,7 +125,7 @@ export function MovieCard({
           className="play-btn"
           disabled={hasFileIssues}
         >
-          {movie.last_position > 0 ? '▶️ Resume' : '▶️ Play'}
+          {movie.last_position > 0 ? 'Resume' : 'Play'}
         </Button>
       </div>
     </div>

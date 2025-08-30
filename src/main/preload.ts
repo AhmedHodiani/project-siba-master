@@ -26,6 +26,7 @@ const electronHandler = {
   openSubtitleFile: () => ipcRenderer.invoke('open-subtitle-file'),
   readSubtitleFile: (filePath: string) => ipcRenderer.invoke('read-subtitle-file', filePath),
   fileExists: (filePath: string) => ipcRenderer.invoke('file-exists', filePath),
+  extractVideoFrames: (videoPath: string, count?: number) => ipcRenderer.invoke('extract-video-frames', videoPath, count),
 };
 
 contextBridge.exposeInMainWorld('electron', electronHandler);

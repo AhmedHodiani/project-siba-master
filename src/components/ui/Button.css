@@ -104,7 +104,7 @@
 .btn--danger {
   background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
   border: none;
-  border-radius: 8px;
+  border-radius: 0px;
   box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
   backdrop-filter: none;
 }
