@@ -119,7 +119,7 @@ export function SubtitleSettings({
                   </Button>
                 </div>
 
-                <div className="delay-slider-container">
+                {/* <div className="delay-slider-container">
                   <input
                     type="range"
                     min="-5"
@@ -134,16 +134,16 @@ export function SubtitleSettings({
                     <span>0s</span>
                     <span>+5s</span>
                   </div>
-                </div>
+                </div> */}
 
-                <Button
+                {/* <Button
                   onClick={resetDelay}
                   variant="secondary"
                   size="small"
                   className="reset-btn"
                 >
                   Reset to 0
-                </Button>
+                </Button> */}
               </div>
 
               <div className="setting-group">
@@ -165,7 +165,7 @@ export function SubtitleSettings({
                 </div>
               </div>
 
-              <div className="setting-group">
+              {/* <div className="setting-group">
                 <label className="setting-label" htmlFor="subtitle-position">
                   Subtitle Position
                 </label>
@@ -178,7 +178,7 @@ export function SubtitleSettings({
                   <option value="onscreen">On Screen (Over Video)</option>
                   <option value="below">Below Video</option>
                 </select>
-              </div>
+              </div> */}
 
               <div className="setting-info">
                 <p className="info-text">

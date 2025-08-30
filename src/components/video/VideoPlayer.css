@@ -458,6 +458,21 @@
   border-color: rgba(255, 200, 0, 0.5) !important;
 }
 
+/* Translate Button - only appears in fullscreen */
+.translate-btn {
+  background: linear-gradient(135deg, rgba(0, 200, 255, 0.2) 0%, rgba(0, 150, 255, 0.1) 100%) !important;
+  border-color: rgba(0, 200, 255, 0.3) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+  font-weight: 600 !important;
+  min-width: 95px !important;
+}
+
+.translate-btn:hover {
+  background: linear-gradient(135deg, rgba(0, 200, 255, 0.3) 0%, rgba(0, 150, 255, 0.2) 100%) !important;
+  border-color: rgba(0, 200, 255, 0.5) !important;
+  color: #ffffff !important;
+}
+
 /* Load Subtitle Button */
 .load-subtitle-btn {
   background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);

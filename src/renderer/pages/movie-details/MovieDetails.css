@@ -33,3 +33,23 @@
   display: flex;
   flex-direction: column;
 }
+
+#overlay {
+  background-color: #151414ff;
+  width: 100%;
+  height: 75px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+}
+
+#overlay2 {
+  background-color: #151414ff;
+  width: 100%;
+  height: 140px;
+  position: absolute;
+  top: 700px;
+  left: 0;
+  z-index: 10;
+}

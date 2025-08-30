@@ -7,9 +7,9 @@ import React, {
   forwardRef,
 } from 'react';
 import { SubtitleCue } from '@/renderer/utils/subtitleParser';
-import { Button, SubtitleSettings } from '../ui';
 import { MovieRecord } from '@/lib/types/database';
 import pocketBaseService from '@/lib/services/pocketbase';
+import { Button, SubtitleSettings } from '../ui';
 import './VideoPlayer.css';
 
 interface VideoPlayerProps {
@@ -28,6 +28,8 @@ interface VideoPlayerProps {
   onDelayChange: (delay: number) => void;
   onSizeChange: (size: number) => void;
   onPositionChange: (position: 'onscreen' | 'below') => void;
+  // Translation
+  onOpenTranslation?: () => void;
 }
 
 export interface VideoPlayerRef {
@@ -37,20 +39,24 @@ export interface VideoPlayerRef {
 }
 
 const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
-  ({ 
-    movie, 
-    currentSubtitle, 
-    subtitleSize, 
-    subtitlePosition,
-    subtitleDelay,
-    subtitlesLoaded,
-    onTimeUpdate,
-    onPreviousSubtitle,
-    onNextSubtitle,
-    onDelayChange,
-    onSizeChange,
-    onPositionChange
-  }, ref) => {
+  (
+    {
+      movie,
+      currentSubtitle,
+      subtitleSize,
+      subtitlePosition,
+      subtitleDelay,
+      subtitlesLoaded,
+      onTimeUpdate,
+      onPreviousSubtitle,
+      onNextSubtitle,
+      onDelayChange,
+      onSizeChange,
+      onPositionChange,
+      onOpenTranslation,
+    },
+    ref,
+  ) => {
     const [url, setUrl] = useState('');
     const [playing, setPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
@@ -81,7 +87,8 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
         setCurrentTime(time);
         onTimeUpdate(time); // Notify parent of time changes
       }
-    }, [onTimeUpdate]);    const handleLoadedMetadata = () => {
+    }, [onTimeUpdate]);
+    const handleLoadedMetadata = () => {
       if (videoRef.current) {
         setDuration(videoRef.current.duration);
       }
@@ -376,7 +383,23 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
                     SUB
                   </Button>
                 )}
-                <Button
+                {/* Translate button - only show in fullscreen when subtitles are available */}
+                {fullscreen &&
+                  subtitlesLoaded &&
+                  currentSubtitle &&
+                  onOpenTranslation && (
+                    <Button
+                      onClick={(e) => {
+                        e?.stopPropagation();
+                        onOpenTranslation();
+                      }}
+                      variant="primary"
+                      className="control-btn translate-btn"
+                    >
+                      TRANSLATE
+                    </Button>
+                  )}
+                {/* <Button
                   onClick={(e) => {
                     e?.stopPropagation();
                     toggleFullscreen();
@@ -385,7 +408,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
                   className="control-btn fullscreen-btn"
                 >
                   {fullscreen ? 'EXIT' : 'FULL'}
-                </Button>
+                </Button> */}
               </div>
             </div>
           </div>
