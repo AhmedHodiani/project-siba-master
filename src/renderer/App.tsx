@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import './App.css';
-import { HomeScreen, VideoPlayer } from '../components/ui';
-import { MovieRecord } from '../types/database';
+import { MovieRecord } from '@/lib/types/database';
+import { HomeScreen } from '@/renderer/pages/home/HomeScreen';
+import MovieDetails from './pages/movie-details/MovieDetails';
 
 type AppScreen = 'home' | 'video';
 
@@ -14,25 +15,12 @@ export default function App() {
     setCurrentScreen('video');
   };
 
-  const handleBackToHome = () => {
-    setSelectedMovie(null);
-    setCurrentScreen('home');
-  };
-
   return (
     <div className="app">
-      {currentScreen === 'home' && (
-        <HomeScreen
-          onPlayMovie={handlePlayMovie}
-          onClose={() => {}} // Not needed when HomeScreen is the main screen
-        />
-      )}
-      
+      {currentScreen === 'home' && <HomeScreen onPlayMovie={handlePlayMovie} />}
+
       {currentScreen === 'video' && selectedMovie && (
-        <VideoPlayer
-          movie={selectedMovie}
-          onBackToHome={handleBackToHome}
-        />
+        <MovieDetails movie={selectedMovie} />
       )}
     </div>
   );

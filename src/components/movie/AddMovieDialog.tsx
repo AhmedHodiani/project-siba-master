@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
-import { CreateMovieData } from '../../types/database';
+import { CreateMovieData } from '@/lib/types/database';
 import { Button } from '../ui/Button';
-import pocketBaseService from '../../services/pocketbase';
+import pocketBaseService from '@/lib/services/pocketbase';
 import './AddMovieDialog.css';
 
 interface AddMovieDialogProps {
@@ -14,8 +14,13 @@ interface VideoFrameData {
   duration: number;
 }
 
-export function AddMovieDialog({ onClose, onMovieAdded }: AddMovieDialogProps) {
-  const [step, setStep] = useState<'select-video' | 'select-subtitle' | 'select-thumbnail' | 'confirm'>('select-video');
+export default function AddMovieDialog({
+  onClose,
+  onMovieAdded,
+}: AddMovieDialogProps) {
+  const [step, setStep] = useState<
+    'select-video' | 'select-subtitle' | 'select-thumbnail' | 'confirm'
+  >('select-video');
   const [videoPath, setVideoPath] = useState<string>('');
   const [subtitlePath, setSubtitlePath] = useState<string>('');
   const [title, setTitle] = useState<string>('');
@@ -46,7 +51,7 @@ export function AddMovieDialog({ onClose, onMovieAdded }: AddMovieDialogProps) {
     try {
       setLoading(true);
       setError('');
-      
+
       const filePath = await window.electron.openVideoFile();
       if (!filePath) {
         setLoading(false);
@@ -54,14 +59,17 @@ export function AddMovieDialog({ onClose, onMovieAdded }: AddMovieDialogProps) {
       }
 
       setVideoPath(filePath);
-      
+
       // Extract filename as default title
       const filename = filePath.split('/').pop() || 'Unknown Movie';
       const titleWithoutExt = filename.replace(/\.[^/.]+$/, '');
       setTitle(titleWithoutExt);
 
       // Extract video frames for thumbnail selection
-      const frameData = await window.electron.extractVideoFrames(filePath, 10) as VideoFrameData;
+      const frameData = (await window.electron.extractVideoFrames(
+        filePath,
+        10,
+      )) as VideoFrameData;
       setFrames(frameData.frames);
       setDuration(frameData.duration);
 
@@ -78,20 +86,23 @@ export function AddMovieDialog({ onClose, onMovieAdded }: AddMovieDialogProps) {
     }
   }, []);
 
-  const handleSelectSubtitle = useCallback(async (skipSubtitle: boolean = false) => {
-    try {
-      if (!skipSubtitle) {
-        const filePath = await window.electron.openSubtitleFile();
-        if (filePath) {
-          setSubtitlePath(filePath);
+  const handleSelectSubtitle = useCallback(
+    async (skipSubtitle: boolean = false) => {
+      try {
+        if (!skipSubtitle) {
+          const filePath = await window.electron.openSubtitleFile();
+          if (filePath) {
+            setSubtitlePath(filePath);
+          }
         }
+        setStep('select-thumbnail');
+      } catch (err) {
+        setError('Failed to select subtitle file.');
+        console.error('Error selecting subtitle:', err);
       }
-      setStep('select-thumbnail');
-    } catch (err) {
-      setError('Failed to select subtitle file.');
-      console.error('Error selecting subtitle:', err);
-    }
-  }, []);
+    },
+    [],
+  );
 
   const handleSelectThumbnail = useCallback((thumbnail: string) => {
     setSelectedThumbnail(thumbnail);
@@ -118,7 +129,15 @@ export function AddMovieDialog({ onClose, onMovieAdded }: AddMovieDialogProps) {
     } finally {
       setLoading(false);
     }
-  }, [title, videoPath, subtitlePath, duration, selectedThumbnail, onMovieAdded, handleClose]);
+  }, [
+    title,
+    videoPath,
+    subtitlePath,
+    duration,
+    selectedThumbnail,
+    onMovieAdded,
+    handleClose,
+  ]);
 
   return (
     <div className="add-movie-dialog-overlay">
@@ -136,11 +155,7 @@ export function AddMovieDialog({ onClose, onMovieAdded }: AddMovieDialogProps) {
         </div>
 
         <div className="dialog-content">
-          {error && (
-            <div className="error-message">
-              {error}
-            </div>
-          )}
+          {error && <div className="error-message">{error}</div>}
 
           {step === 'select-video' && (
             <div className="step-content">
@@ -188,7 +203,7 @@ export function AddMovieDialog({ onClose, onMovieAdded }: AddMovieDialogProps) {
               <div className="step-icon">🖼️</div>
               <h3>Choose Thumbnail</h3>
               <p>Select a frame from the movie to use as the thumbnail:</p>
-              
+
               <div className="movie-info">
                 <input
                   type="text"
@@ -216,7 +231,10 @@ export function AddMovieDialog({ onClose, onMovieAdded }: AddMovieDialogProps) {
                 </div>
               ) : (
                 <div className="no-frames">
-                  <p>No thumbnail frames available. The movie will be added without a thumbnail.</p>
+                  <p>
+                    No thumbnail frames available. The movie will be added
+                    without a thumbnail.
+                  </p>
                 </div>
               )}
 
@@ -243,9 +261,19 @@ export function AddMovieDialog({ onClose, onMovieAdded }: AddMovieDialogProps) {
 
         <div className="dialog-footer">
           <div className="step-indicator">
-            <div className={`step ${step === 'select-video' ? 'active' : ''}`}>1</div>
-            <div className={`step ${step === 'select-subtitle' ? 'active' : ''}`}>2</div>
-            <div className={`step ${step === 'select-thumbnail' ? 'active' : ''}`}>3</div>
+            <div className={`step ${step === 'select-video' ? 'active' : ''}`}>
+              1
+            </div>
+            <div
+              className={`step ${step === 'select-subtitle' ? 'active' : ''}`}
+            >
+              2
+            </div>
+            <div
+              className={`step ${step === 'select-thumbnail' ? 'active' : ''}`}
+            >
+              3
+            </div>
           </div>
         </div>
       </div>

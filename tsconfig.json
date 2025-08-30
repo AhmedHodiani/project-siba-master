@@ -12,7 +12,17 @@
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "allowJs": true,
-    "outDir": ".erb/dll"
+    "outDir": ".erb/dll",
+    "baseUrl": "./src",
+    "paths": {
+      "@/*": ["*"],
+      "@/components/*": ["components/*"],
+      "@/lib/*": ["lib/*"],
+      "@/types/*": ["lib/types/*"],
+      "@/services/*": ["lib/services/*"],
+      "@/renderer/*": ["renderer/*"],
+      "@/main/*": ["main/*"]
+    }
   },
   "exclude": ["pocketbase", "release/build", "release/app/dist", ".erb/dll"]
 }

@@ -5,20 +5,7 @@
   padding: 0;
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
-  background: linear-gradient(135deg, #0c0c0c 0%, #1a1a1a 50%, #262626 100%);
-  color: #ffffff;
-  line-height: 1.5;
-  min-height: 100vh;
-}
-
 .video-player-container {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
   padding: 0px;
   background: transparent;
 }

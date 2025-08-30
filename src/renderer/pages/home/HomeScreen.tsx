@@ -1,17 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { MovieRecord, CreateMovieData } from '../../types/database';
-import { MovieCard } from '../movie/MovieCard';
-import { AddMovieDialog } from '../movie/AddMovieDialog';
-import { Button } from '../ui/Button';
-import pocketBaseService from '../../services/pocketbase';
+import { MovieRecord, CreateMovieData } from '@/types/database';
+import { MovieCard } from '@/components/movie/MovieCard';
+import { AddMovieDialog } from '@/components/movie/AddMovieDialog';
+import { Button } from '@/components/ui/Button';
+import pocketBaseService from '@/services/pocketbase';
 import './HomeScreen.css';
 
 interface HomeScreenProps {
   onPlayMovie: (movie: MovieRecord) => void;
-  onClose?: () => void;
 }
 
-export function HomeScreen({ onPlayMovie, onClose }: HomeScreenProps) {
+export function HomeScreen({ onPlayMovie }: HomeScreenProps) {
   const [movies, setMovies] = useState<MovieRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

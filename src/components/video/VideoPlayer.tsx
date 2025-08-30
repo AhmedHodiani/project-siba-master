@@ -3,18 +3,17 @@ import {
   SubtitleCue,
   parseSRT,
   getCurrentSubtitle,
-} from '../../renderer/utils/subtitleParser';
+} from '@/renderer/utils/subtitleParser';
 import { Button, SubtitleSettings } from '../ui';
-import { MovieRecord } from '../../types/database';
-import pocketBaseService from '../../services/pocketbase';
+import { MovieRecord } from '@/lib/types/database';
+import pocketBaseService from '@/lib/services/pocketbase';
 import './VideoPlayer.css';
 
 interface VideoPlayerProps {
   movie: MovieRecord;
-  onBackToHome: () => void;
 }
 
-export function VideoPlayer({ movie, onBackToHome }: VideoPlayerProps) {
+export default function VideoPlayer({ movie }: VideoPlayerProps) {
   const [url, setUrl] = useState('');
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -23,15 +22,20 @@ export function VideoPlayer({ movie, onBackToHome }: VideoPlayerProps) {
   const [muted, setMuted] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [subtitles, setSubtitles] = useState<SubtitleCue[]>([]);
-  const [currentSubtitle, setCurrentSubtitle] = useState<SubtitleCue | null>(null);
+  const [currentSubtitle, setCurrentSubtitle] = useState<SubtitleCue | null>(
+    null,
+  );
   const [subtitleDelay, setSubtitleDelay] = useState(0);
   const [subtitleSize, setSubtitleSize] = useState(18);
-  const [subtitlePosition, setSubtitlePosition] = useState<'onscreen' | 'below'>('onscreen');
+  const [subtitlePosition, setSubtitlePosition] = useState<
+    'onscreen' | 'below'
+  >('onscreen');
   const [showSubtitleSettings, setShowSubtitleSettings] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => setUrl(e.target.value);
+  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+    setUrl(e.target.value);
 
   const handleLoadVideoFile = async () => {
     try {
@@ -116,10 +120,8 @@ export function VideoPlayer({ movie, onBackToHome }: VideoPlayerProps) {
       if (containerRef.current?.requestFullscreen) {
         containerRef.current.requestFullscreen();
       }
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-      }
+    } else if (document.exitFullscreen) {
+      document.exitFullscreen();
     }
     setFullscreen(!fullscreen);
   };
@@ -137,7 +139,9 @@ export function VideoPlayer({ movie, onBackToHome }: VideoPlayerProps) {
     const timeoutId = setTimeout(async () => {
       if (subtitleDelay !== movie.srt_delay) {
         try {
-          await pocketBaseService.updateMovie(movie.id, { srt_delay: subtitleDelay });
+          await pocketBaseService.updateMovie(movie.id, {
+            srt_delay: subtitleDelay,
+          });
         } catch (error) {
           console.error('Error saving subtitle delay:', error);
         }
@@ -155,26 +159,17 @@ export function VideoPlayer({ movie, onBackToHome }: VideoPlayerProps) {
     setSubtitlePosition(position);
   };
 
-  const handleBackToHomeClick = useCallback(() => {
-    // Save current position before going back
-    if (videoRef.current) {
-      const position = videoRef.current.currentTime;
-      pocketBaseService.updateLastPosition(movie.id, position)
-        .catch(err => console.error('Error saving position:', err));
-    }
-    
-    onBackToHome();
-  }, [movie.id, onBackToHome]);
-
   const seekToPreviousSubtitle = useCallback(() => {
     if (!videoRef.current || subtitles.length === 0) return;
-    
-    const currentTime = videoRef.current.currentTime;
+
+    const { currentTime } = videoRef.current;
     // Find the previous subtitle - we need to find subtitles that would be displayed
     // at a time before the current video time (accounting for delay)
     const adjustedCurrentTime = currentTime + subtitleDelay;
-    const previousSubtitles = subtitles.filter(sub => sub.startTime < adjustedCurrentTime - 0.5);
-    
+    const previousSubtitles = subtitles.filter(
+      (sub) => sub.startTime < adjustedCurrentTime - 0.5,
+    );
+
     if (previousSubtitles.length > 0) {
       // Get the last (most recent) previous subtitle
       const previousSubtitle = previousSubtitles[previousSubtitles.length - 1];
@@ -192,13 +187,15 @@ export function VideoPlayer({ movie, onBackToHome }: VideoPlayerProps) {
 
   const seekToNextSubtitle = useCallback(() => {
     if (!videoRef.current || subtitles.length === 0) return;
-    
-    const currentTime = videoRef.current.currentTime;
+
+    const { currentTime } = videoRef.current;
     // Find the next subtitle - we need to find subtitles that would be displayed
     // at a time after the current video time (accounting for delay)
     const adjustedCurrentTime = currentTime + subtitleDelay;
-    const nextSubtitle = subtitles.find(sub => sub.startTime > adjustedCurrentTime + 0.5);
-    
+    const nextSubtitle = subtitles.find(
+      (sub) => sub.startTime > adjustedCurrentTime + 0.5,
+    );
+
     if (nextSubtitle) {
       // Seek to the video time where this subtitle should appear (subtract delay)
       const seekTime = nextSubtitle.startTime - subtitleDelay;
@@ -268,21 +265,22 @@ export function VideoPlayer({ movie, onBackToHome }: VideoPlayerProps) {
     if (movie) {
       setUrl(`file://${movie.mp4_path}`);
       setSubtitleDelay(movie.srt_delay);
-      
+
       // Load subtitles if available
       if (movie.srt_path) {
-        window.electron.readSubtitleFile(movie.srt_path)
-          .then(content => {
+        window.electron
+          .readSubtitleFile(movie.srt_path)
+          .then((content) => {
             if (content) {
               const parsedSubtitles = parseSRT(content);
               setSubtitles(parsedSubtitles);
             }
           })
-          .catch(error => console.error('Error loading subtitles:', error));
+          .catch((error) => console.error('Error loading subtitles:', error));
       } else {
         setSubtitles([]);
       }
-      
+
       // Set initial position if resuming
       if (movie.last_position > 0 && videoRef.current) {
         setTimeout(() => {
@@ -314,7 +312,10 @@ export function VideoPlayer({ movie, onBackToHome }: VideoPlayerProps) {
 
   return (
     <div className="video-player-container">
-      <div ref={containerRef} className={`player-wrapper ${fullscreen ? 'fullscreen' : ''}`}>
+      <div
+        ref={containerRef}
+        className={`player-wrapper ${fullscreen ? 'fullscreen' : ''}`}
+      >
         <video
           ref={videoRef}
           src={url}
@@ -325,17 +326,17 @@ export function VideoPlayer({ movie, onBackToHome }: VideoPlayerProps) {
           className="video-element"
           playsInline
         />
-        
+
         {/* Subtitle display */}
         {currentSubtitle && subtitlePosition === 'onscreen' && (
-          <div 
+          <div
             className="subtitle-display"
             style={{ fontSize: `${subtitleSize}px` }}
           >
             {currentSubtitle.text}
           </div>
         )}
-        
+
         <div className="custom-controls">
           <div className="progress-container">
             <input
@@ -347,22 +348,27 @@ export function VideoPlayer({ movie, onBackToHome }: VideoPlayerProps) {
               className="progress-slider"
             />
           </div>
-          
+
           <div className="controls-row">
             <div className="left-controls">
-              <Button onClick={togglePlay} variant="primary" className="control-btn play-btn">
+              <Button
+                onClick={togglePlay}
+                variant="primary"
+                className="control-btn play-btn"
+              >
                 {playing ? 'PAUSE' : 'PLAY'}
               </Button>
               <span className="time-display">
                 {formatTime(currentTime)} / {formatTime(duration)}
               </span>
             </div>
-            
+
             <div className="right-controls">
-              <Button onClick={handleBackToHomeClick} variant="secondary" className="control-btn home-btn">
-                🏠 HOME
-              </Button>
-              <Button onClick={toggleMute} variant="primary" className="control-btn mute-btn">
+              <Button
+                onClick={toggleMute}
+                variant="primary"
+                className="control-btn mute-btn"
+              >
                 {muted ? 'UNMUTE' : 'MUTE'}
               </Button>
               <input
@@ -374,30 +380,40 @@ export function VideoPlayer({ movie, onBackToHome }: VideoPlayerProps) {
                 onChange={handleVolumeChange}
                 className="volume-slider"
               />
-              <span className="volume-display">{Math.round(volume * 100)}%</span>
+              <span className="volume-display">
+                {Math.round(volume * 100)}%
+              </span>
               {subtitles.length > 0 && (
-                <Button onClick={toggleSubtitleSettings} variant="primary" className="control-btn subtitle-settings-btn">
+                <Button
+                  onClick={toggleSubtitleSettings}
+                  variant="primary"
+                  className="control-btn subtitle-settings-btn"
+                >
                   SUB
                 </Button>
               )}
-              <Button onClick={toggleFullscreen} variant="primary" className="control-btn fullscreen-btn">
+              <Button
+                onClick={toggleFullscreen}
+                variant="primary"
+                className="control-btn fullscreen-btn"
+              >
                 {fullscreen ? 'EXIT' : 'FULL'}
               </Button>
             </div>
           </div>
         </div>
       </div>
-      
+
       {/* Below video subtitle display */}
       {currentSubtitle && subtitlePosition === 'below' && (
-        <div 
+        <div
           className="subtitle-display-below"
           style={{ fontSize: `${subtitleSize}px` }}
         >
           {currentSubtitle.text}
         </div>
       )}
-      
+
       <SubtitleSettings
         isOpen={showSubtitleSettings}
         onClose={() => setShowSubtitleSettings(false)}

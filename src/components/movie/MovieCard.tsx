@@ -1,7 +1,7 @@
 import React from 'react';
-import { MovieRecord } from '../../types/database';
+import { MovieRecord } from '@/lib/types/database';
 import { Button } from '../ui/Button';
-import pocketBaseService from '../../services/pocketbase';
+import pocketBaseService from '@/lib/services/pocketbase';
 import './MovieCard.css';
 
 interface MovieCardProps {
