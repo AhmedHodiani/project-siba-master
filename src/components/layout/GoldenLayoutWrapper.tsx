@@ -17,13 +17,19 @@ const GoldenLayoutWrapper: React.FC<GoldenLayoutWrapperProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const layoutRef = useRef<any>(null);
+  const configRef = useRef(config);
+
+  // Update config ref when prop changes
+  useEffect(() => {
+    configRef.current = config;
+  }, [config]);
 
   const initializeLayout = useCallback(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current || layoutRef.current) return; // Don't reinitialize if layout already exists
 
     try {
-      // Create the layout
-      const layout = new GoldenLayout(config, containerRef.current);
+      // Create the layout using the current config
+      const layout = new GoldenLayout(configRef.current, containerRef.current);
 
       // Register React component renderer
       layout.registerComponent('react-component', function(container: any, componentState: any) {
@@ -79,17 +85,18 @@ const GoldenLayoutWrapper: React.FC<GoldenLayoutWrapperProps> = ({
         window.removeEventListener('resize', handleResize);
         if (layoutRef.current) {
           layoutRef.current.destroy();
+          layoutRef.current = null;
         }
       };
     } catch (error) {
       console.error('Error initializing Golden Layout:', error);
     }
-  }, [config, onLayoutCreated]);
+  }, []); // Remove config dependency to prevent reinitializations
 
   useEffect(() => {
     const cleanup = initializeLayout();
     return cleanup;
-  }, [initializeLayout]);
+  }, []); // Only initialize once
 
   return (
     <div style={{ width: '100%', height: '100%' }}>

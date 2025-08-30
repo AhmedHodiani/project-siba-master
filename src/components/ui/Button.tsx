@@ -3,7 +3,7 @@ import './Button.css';
 
 interface ButtonProps {
   children: React.ReactNode;
-  onClick: () => void;
+  onClick: (e?: React.MouseEvent<HTMLButtonElement>) => void;
   variant?: 'primary' | 'secondary' | 'danger' | 'success';
   size?: 'small' | 'medium' | 'large';
   disabled?: boolean;
@@ -39,7 +39,7 @@ export function Button({
     <button
       type={type}
       className={combinedClasses}
-      onClick={onClick}
+      onClick={(e) => onClick(e)}
       disabled={disabled}
     >
       {children}

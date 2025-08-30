@@ -6,11 +6,7 @@ import React, {
   useImperativeHandle,
   forwardRef,
 } from 'react';
-import {
-  SubtitleCue,
-  parseSRT,
-  getCurrentSubtitle,
-} from '@/renderer/utils/subtitleParser';
+import { SubtitleCue } from '@/renderer/utils/subtitleParser';
 import { Button, SubtitleSettings } from '../ui';
 import { MovieRecord } from '@/lib/types/database';
 import pocketBaseService from '@/lib/services/pocketbase';
@@ -18,15 +14,43 @@ import './VideoPlayer.css';
 
 interface VideoPlayerProps {
   movie: MovieRecord;
+  // Subtitle props from parent
+  currentSubtitle: SubtitleCue | null;
+  subtitleSize: number;
+  subtitlePosition: 'onscreen' | 'below';
+  subtitleDelay: number;
+  subtitlesLoaded: boolean;
+  onTimeUpdate: (time: number) => void;
+  // Subtitle navigation
+  onPreviousSubtitle: () => void;
+  onNextSubtitle: () => void;
+  // Subtitle settings
+  onDelayChange: (delay: number) => void;
+  onSizeChange: (size: number) => void;
+  onPositionChange: (position: 'onscreen' | 'below') => void;
 }
 
 export interface VideoPlayerRef {
   getCurrentPosition: () => number;
   saveCurrentPosition: () => Promise<void>;
+  seekTo: (time: number) => void;
 }
 
 const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
-  ({ movie }, ref) => {
+  ({ 
+    movie, 
+    currentSubtitle, 
+    subtitleSize, 
+    subtitlePosition,
+    subtitleDelay,
+    subtitlesLoaded,
+    onTimeUpdate,
+    onPreviousSubtitle,
+    onNextSubtitle,
+    onDelayChange,
+    onSizeChange,
+    onPositionChange
+  }, ref) => {
     const [url, setUrl] = useState('');
     const [playing, setPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
@@ -34,16 +58,9 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
     const [volume, setVolume] = useState(1);
     const [muted, setMuted] = useState(false);
     const [fullscreen, setFullscreen] = useState(false);
-    const [subtitles, setSubtitles] = useState<SubtitleCue[]>([]);
-    const [currentSubtitle, setCurrentSubtitle] = useState<SubtitleCue | null>(
-      null,
-    );
-    const [subtitleDelay, setSubtitleDelay] = useState(0);
-    const [subtitleSize, setSubtitleSize] = useState(18);
-    const [subtitlePosition, setSubtitlePosition] = useState<
-      'onscreen' | 'below'
-    >('onscreen');
     const [showSubtitleSettings, setShowSubtitleSettings] = useState(false);
+    const [showControls, setShowControls] = useState(false);
+    const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -58,23 +75,20 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
       }
     }, [playing]);
 
-    const handleTimeUpdate = () => {
+    const handleTimeUpdate = useCallback(() => {
       if (videoRef.current) {
         const time = videoRef.current.currentTime;
         setCurrentTime(time);
-        // Update current subtitle based on video time with delay adjustment
-        const subtitle = getCurrentSubtitle(subtitles, time, subtitleDelay);
-        setCurrentSubtitle(subtitle);
+        onTimeUpdate(time); // Notify parent of time changes
       }
-    };
-
-    const handleLoadedMetadata = () => {
+    }, [onTimeUpdate]);    const handleLoadedMetadata = () => {
       if (videoRef.current) {
         setDuration(videoRef.current.duration);
       }
     };
 
     const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+      e.stopPropagation();
       const time = parseFloat(e.target.value);
       if (videoRef.current) {
         videoRef.current.currentTime = time;
@@ -83,6 +97,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
     };
 
     const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      e.stopPropagation();
       const vol = parseFloat(e.target.value);
       setVolume(vol);
       if (videoRef.current) {
@@ -105,93 +120,40 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
       } else if (document.exitFullscreen) {
         document.exitFullscreen();
       }
-      setFullscreen(!fullscreen);
+      // Don't immediately set state - let the fullscreenchange event handle it
     };
 
     const toggleSubtitleSettings = () => {
       setShowSubtitleSettings(!showSubtitleSettings);
     };
 
-    const handleSubtitleDelayChange = useCallback((delay: number) => {
-      setSubtitleDelay(delay);
+    // Handle controls visibility
+    const showControlsHandler = useCallback(() => {
+      setShowControls(true);
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+      const timeout = setTimeout(() => {
+        setShowControls(false);
+      }, 3000); // Hide after 3 seconds of inactivity
+      controlsTimeoutRef.current = timeout;
     }, []);
 
-    // Debounced effect to save subtitle delay to database
-    useEffect(() => {
-      const timeoutId = setTimeout(async () => {
-        if (subtitleDelay !== movie.srt_delay) {
-          try {
-            await pocketBaseService.updateMovie(movie.id, {
-              srt_delay: subtitleDelay,
-            });
-          } catch (error) {
-            console.error('Error saving subtitle delay:', error);
-          }
-        }
-      }, 500);
-
-      return () => clearTimeout(timeoutId);
-    }, [subtitleDelay, movie.id, movie.srt_delay]);
-
-    const handleSubtitleSizeChange = (size: number) => {
-      setSubtitleSize(size);
-    };
-
-    const handleSubtitlePositionChange = (position: 'onscreen' | 'below') => {
-      setSubtitlePosition(position);
-    };
-
-    const seekToPreviousSubtitle = useCallback(() => {
-      if (!videoRef.current || subtitles.length === 0) return;
-
-      const { currentTime } = videoRef.current;
-      // Find the previous subtitle - we need to find subtitles that would be displayed
-      // at a time before the current video time (accounting for delay)
-      const adjustedCurrentTime = currentTime + subtitleDelay;
-      const previousSubtitles = subtitles.filter(
-        (sub) => sub.startTime < adjustedCurrentTime - 0.5,
-      );
-
-      if (previousSubtitles.length > 0) {
-        // Get the last (most recent) previous subtitle
-        const previousSubtitle =
-          previousSubtitles[previousSubtitles.length - 1];
-        // Seek to the video time where this subtitle should appear (subtract delay)
-        const seekTime = previousSubtitle.startTime - subtitleDelay;
-        videoRef.current.currentTime = seekTime;
-        setCurrentTime(seekTime);
-      } else if (subtitles.length > 0) {
-        // If no previous subtitle found, go to the first subtitle
-        const seekTime = subtitles[0].startTime - subtitleDelay;
-        videoRef.current.currentTime = seekTime;
-        setCurrentTime(seekTime);
+    const hideControlsHandler = useCallback(() => {
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+        controlsTimeoutRef.current = null;
       }
-    }, [subtitles, subtitleDelay]);
+      setShowControls(false);
+    }, []);
 
-    const seekToNextSubtitle = useCallback(() => {
-      if (!videoRef.current || subtitles.length === 0) return;
+    const handleMouseMove = useCallback(() => {
+      showControlsHandler();
+    }, [showControlsHandler]);
 
-      const { currentTime } = videoRef.current;
-      // Find the next subtitle - we need to find subtitles that would be displayed
-      // at a time after the current video time (accounting for delay)
-      const adjustedCurrentTime = currentTime + subtitleDelay;
-      const nextSubtitle = subtitles.find(
-        (sub) => sub.startTime > adjustedCurrentTime + 0.5,
-      );
-
-      if (nextSubtitle) {
-        // Seek to the video time where this subtitle should appear (subtract delay)
-        const seekTime = nextSubtitle.startTime - subtitleDelay;
-        videoRef.current.currentTime = seekTime;
-        setCurrentTime(seekTime);
-      } else if (subtitles.length > 0) {
-        // If no next subtitle found, go to the last subtitle
-        const lastSubtitle = subtitles[subtitles.length - 1];
-        const seekTime = lastSubtitle.startTime - subtitleDelay;
-        videoRef.current.currentTime = seekTime;
-        setCurrentTime(seekTime);
-      }
-    }, [subtitles, subtitleDelay]);
+    const handleMouseLeave = useCallback(() => {
+      hideControlsHandler();
+    }, [hideControlsHandler]);
 
     const handleKeyDown = useCallback(
       (e: KeyboardEvent) => {
@@ -225,19 +187,19 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
           }
           case '1': {
             e.preventDefault();
-            seekToPreviousSubtitle();
+            onPreviousSubtitle();
             break;
           }
           case '2': {
             e.preventDefault();
-            seekToNextSubtitle();
+            onNextSubtitle();
             break;
           }
           default:
             break;
         }
       },
-      [duration, togglePlay, seekToPreviousSubtitle, seekToNextSubtitle],
+      [duration, togglePlay, onPreviousSubtitle, onNextSubtitle],
     );
 
     const formatTime = (time: number) => {
@@ -265,6 +227,12 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
             }
           }
         },
+        seekTo: (time: number) => {
+          if (videoRef.current) {
+            videoRef.current.currentTime = time;
+            setCurrentTime(time);
+          }
+        },
       }),
       [movie.id],
     );
@@ -273,22 +241,6 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
     useEffect(() => {
       if (movie) {
         setUrl(`file://${movie.mp4_path}`);
-        setSubtitleDelay(movie.srt_delay);
-
-        // Load subtitles if available
-        if (movie.srt_path) {
-          window.electron
-            .readSubtitleFile(movie.srt_path)
-            .then((content) => {
-              if (content) {
-                const parsedSubtitles = parseSRT(content);
-                setSubtitles(parsedSubtitles);
-              }
-            })
-            .catch((error) => console.error('Error loading subtitles:', error));
-        } else {
-          setSubtitles([]);
-        }
 
         // Set initial position if resuming
         if (movie.last_position > 0 && videoRef.current) {
@@ -322,11 +274,22 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
       };
     }, [handleKeyDown]);
 
+    // Cleanup timeout on unmount
+    useEffect(() => {
+      return () => {
+        if (controlsTimeoutRef.current) {
+          clearTimeout(controlsTimeoutRef.current);
+        }
+      };
+    }, []);
+
     return (
       <div className="video-player-container">
         <div
           ref={containerRef}
           className={`player-wrapper ${fullscreen ? 'fullscreen' : ''}`}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
         >
           <video
             ref={videoRef}
@@ -349,7 +312,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
             </div>
           )}
 
-          <div className="custom-controls">
+          <div className={`custom-controls ${showControls ? 'visible' : ''}`}>
             <div className="progress-container">
               <input
                 type="range"
@@ -364,7 +327,10 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
             <div className="controls-row">
               <div className="left-controls">
                 <Button
-                  onClick={togglePlay}
+                  onClick={(e) => {
+                    e?.stopPropagation();
+                    togglePlay();
+                  }}
                   variant="primary"
                   className="control-btn play-btn"
                 >
@@ -377,7 +343,10 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
 
               <div className="right-controls">
                 <Button
-                  onClick={toggleMute}
+                  onClick={(e) => {
+                    e?.stopPropagation();
+                    toggleMute();
+                  }}
                   variant="primary"
                   className="control-btn mute-btn"
                 >
@@ -395,9 +364,12 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
                 <span className="volume-display">
                   {Math.round(volume * 100)}%
                 </span>
-                {subtitles.length > 0 && (
+                {subtitlesLoaded && (
                   <Button
-                    onClick={toggleSubtitleSettings}
+                    onClick={(e) => {
+                      e?.stopPropagation();
+                      toggleSubtitleSettings();
+                    }}
                     variant="primary"
                     className="control-btn subtitle-settings-btn"
                   >
@@ -405,7 +377,10 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
                   </Button>
                 )}
                 <Button
-                  onClick={toggleFullscreen}
+                  onClick={(e) => {
+                    e?.stopPropagation();
+                    toggleFullscreen();
+                  }}
                   variant="primary"
                   className="control-btn fullscreen-btn"
                 >
@@ -430,12 +405,12 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
           isOpen={showSubtitleSettings}
           onClose={() => setShowSubtitleSettings(false)}
           subtitleDelay={subtitleDelay}
-          onDelayChange={handleSubtitleDelayChange}
+          onDelayChange={onDelayChange}
           subtitleSize={subtitleSize}
-          onSizeChange={handleSubtitleSizeChange}
+          onSizeChange={onSizeChange}
           subtitlePosition={subtitlePosition}
-          onPositionChange={handleSubtitlePositionChange}
-          subtitlesLoaded={subtitles.length > 0}
+          onPositionChange={onPositionChange}
+          subtitlesLoaded={subtitlesLoaded}
         />
       </div>
     );

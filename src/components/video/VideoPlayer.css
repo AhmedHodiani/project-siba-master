@@ -18,21 +18,8 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 0px;
   overflow: hidden;
-  box-shadow: 
-    0 20px 40px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(255, 255, 255, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   background: rgba(0, 0, 0, 0.8);
   backdrop-filter: blur(20px);
-  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-.player-wrapper:hover {
-  transform: translateY(-2px);
-  box-shadow: 
-    0 30px 60px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(255, 255, 255, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .player-wrapper.fullscreen {
@@ -71,16 +58,18 @@
   padding: 20px 24px;
   opacity: 0;
   transform: translateY(100%);
-  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transition: all 0.3s ease;
+  pointer-events: none;
+}
+
+.custom-controls.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 
 .player-wrapper.fullscreen .custom-controls {
   border-radius: 0px;
-}
-
-.player-wrapper:hover .custom-controls {
-  opacity: 1;
-  transform: translateY(0);
 }
 
 .progress-container {
