@@ -518,3 +518,18 @@ input[type="range"] {
 input[type="range"]:focus {
   outline: none;
 }
+
+/* Home Button */
+.home-btn {
+  background: linear-gradient(135deg, rgba(100, 200, 255, 0.2) 0%, rgba(50, 150, 255, 0.1) 100%) !important;
+  border-color: rgba(100, 200, 255, 0.3) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+  font-weight: 600 !important;
+  min-width: 85px !important;
+}
+
+.home-btn:hover {
+  background: linear-gradient(135deg, rgba(100, 200, 255, 0.3) 0%, rgba(50, 150, 255, 0.2) 100%) !important;
+  border-color: rgba(100, 200, 255, 0.5) !important;
+  color: #ffffff !important;
+}

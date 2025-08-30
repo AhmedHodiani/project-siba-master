@@ -5,10 +5,12 @@ import {
   parseSRT,
   getCurrentSubtitle,
 } from './utils/subtitleParser';
-import { Button, SubtitleSettings } from '../components/ui';
+import { Button, SubtitleSettings, HomeScreen } from '../components/ui';
+import { MovieRecord } from '../types/database';
+import pocketBaseService from '../services/pocketbase';
 
 function VideoPlayerUI() {
-  const [url, setUrl] = useState("file:///home/z3ban/Downloads/how.to.train.your.dragon.(2010).ger.2cd.(12095245)/Drachenzaehmen.Leicht.Gemacht1.2010.1080P.Bluray.mp4");
+  const [url, setUrl] = useState('');
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -17,10 +19,12 @@ function VideoPlayerUI() {
   const [fullscreen, setFullscreen] = useState(false);
   const [subtitles, setSubtitles] = useState<SubtitleCue[]>([]);
   const [currentSubtitle, setCurrentSubtitle] = useState<SubtitleCue | null>(null);
-  const [subtitleDelay, setSubtitleDelay] = useState(24);
+  const [subtitleDelay, setSubtitleDelay] = useState(0);
   const [subtitleSize, setSubtitleSize] = useState(18);
   const [subtitlePosition, setSubtitlePosition] = useState<'onscreen' | 'below'>('onscreen');
   const [showSubtitleSettings, setShowSubtitleSettings] = useState(false);
+  const [showHomeScreen, setShowHomeScreen] = useState(true);
+  const [currentMovie, setCurrentMovie] = useState<MovieRecord | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -132,6 +136,62 @@ function VideoPlayerUI() {
   const handleSubtitlePositionChange = (position: 'onscreen' | 'below') => {
     setSubtitlePosition(position);
   };
+
+  // Movie handling functions
+  const handlePlayMovie = useCallback(async (movie: MovieRecord) => {
+    try {
+      // Set movie data
+      setCurrentMovie(movie);
+      setUrl(`file://${movie.mp4_path}`);
+      setSubtitleDelay(movie.srt_delay);
+      
+      // Load subtitles if available
+      if (movie.srt_path) {
+        const content = await window.electron.readSubtitleFile(movie.srt_path);
+        if (content) {
+          const parsedSubtitles = parseSRT(content);
+          setSubtitles(parsedSubtitles);
+        }
+      } else {
+        setSubtitles([]);
+      }
+      
+      // Hide home screen and show video player
+      setShowHomeScreen(false);
+      
+      // Set initial position if resuming
+      if (movie.last_position > 0 && videoRef.current) {
+        setTimeout(() => {
+          if (videoRef.current) {
+            videoRef.current.currentTime = movie.last_position;
+            setCurrentTime(movie.last_position);
+          }
+        }, 1000);
+      }
+      
+    } catch (error) {
+      console.error('Error loading movie:', error);
+    }
+  }, []);
+
+  const handleBackToHome = useCallback(() => {
+    // Save current position if movie is loaded
+    if (currentMovie && videoRef.current) {
+      const position = videoRef.current.currentTime;
+      pocketBaseService.updateLastPosition(currentMovie.id, position)
+        .catch(err => console.error('Error saving position:', err));
+    }
+    
+    // Reset video player state
+    setUrl('');
+    setPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setSubtitles([]);
+    setCurrentSubtitle(null);
+    setCurrentMovie(null);
+    setShowHomeScreen(true);
+  }, [currentMovie]);
 
   const seekToPreviousSubtitle = useCallback(() => {
     if (!videoRef.current || subtitles.length === 0) return;
@@ -294,6 +354,9 @@ function VideoPlayerUI() {
             </div>
             
             <div className="right-controls">
+              <Button onClick={handleBackToHome} variant="secondary" className="control-btn home-btn">
+                🏠 HOME
+              </Button>
               <Button onClick={toggleMute} variant="primary" className="control-btn mute-btn">
                 {muted ? 'UNMUTE' : 'MUTE'}
               </Button>
@@ -366,6 +429,14 @@ function VideoPlayerUI() {
         onPositionChange={handleSubtitlePositionChange}
         subtitlesLoaded={subtitles.length > 0}
       />
+      
+      {/* Home Screen */}
+      {showHomeScreen && (
+        <HomeScreen
+          onPlayMovie={handlePlayMovie}
+          onClose={() => setShowHomeScreen(false)}
+        />
+      )}
     </div>
   );
 }

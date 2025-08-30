@@ -76,6 +76,15 @@ ipcMain.handle('read-subtitle-file', async (_, filePath: string) => {
   }
 });
 
+ipcMain.handle('file-exists', async (_, filePath: string) => {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch (error) {
+    return false;
+  }
+});
+
 if (process.env.NODE_ENV === 'production') {
   const sourceMapSupport = require('source-map-support');
   sourceMapSupport.install();
