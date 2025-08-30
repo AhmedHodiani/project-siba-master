@@ -10,6 +10,7 @@
  */
 import path from 'path';
 import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron';
+import { promises as fs } from 'fs';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import MenuBuilder from './menu';
@@ -46,6 +47,33 @@ ipcMain.handle('open-video-file', async () => {
     return result.filePaths[0];
   }
   return null;
+});
+
+ipcMain.handle('open-subtitle-file', async () => {
+  const result = await dialog.showOpenDialog(mainWindow!, {
+    properties: ['openFile'],
+    filters: [
+      {
+        name: 'Subtitle Files',
+        extensions: ['srt', 'vtt', 'ass', 'ssa']
+      }
+    ]
+  });
+
+  if (!result.canceled && result.filePaths.length > 0) {
+    return result.filePaths[0];
+  }
+  return null;
+});
+
+ipcMain.handle('read-subtitle-file', async (_, filePath: string) => {
+  try {
+    const content = await fs.readFile(filePath, 'utf-8');
+    return content;
+  } catch (error) {
+    console.error('Error reading subtitle file:', error);
+    return null;
+  }
 });
 
 if (process.env.NODE_ENV === 'production') {

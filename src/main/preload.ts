@@ -23,6 +23,8 @@ const electronHandler = {
     },
   },
   openVideoFile: () => ipcRenderer.invoke('open-video-file'),
+  openSubtitleFile: () => ipcRenderer.invoke('open-subtitle-file'),
+  readSubtitleFile: (filePath: string) => ipcRenderer.invoke('read-subtitle-file', filePath),
 };
 
 contextBridge.exposeInMainWorld('electron', electronHandler);

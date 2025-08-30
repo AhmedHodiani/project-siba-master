@@ -1,44 +1,50 @@
-# Copilot Instructions for electron-react-boilerplate
+# Copilot Instructions for Video Player Electron App
 
-## Project Architecture
-- **Electron Main Process**: Entry at `src/main/main.ts`. Handles window creation, IPC, auto-updates, and menu setup. Communicates with renderer via IPC.
-- **Renderer Process**: React app entry at `src/renderer/App.tsx`. Uses React Router for navigation. UI assets in `assets/`.
-- **Preload Scripts**: Defined in `src/main/preload.ts` and referenced in main process for secure context bridging.
-- **Menu Customization**: `src/main/menu.ts` builds platform-specific menus and dev tools access.
-- **Utilities**: Shared helpers in `src/main/util.ts`.
+## Project Architecture (Video Player)
+- **Electron Main Process**: Entry at `src/main/main.ts`. Handles window creation, IPC for file dialogs, auto-updates, and menu setup. Key IPC: `open-video-file` for native file selection.
+- **Renderer Process**: React video player UI at `src/renderer/App.tsx`. Custom HTML5 video controls with fullscreen, progress, volume controls. No routing—single page app.
+- **Preload Scripts**: `src/main/preload.ts` exposes `openVideoFile()` method to renderer via contextBridge for secure file access.
+- **File System Integration**: Handles local video files via `dialog.showOpenDialog()` with video format filters (mp4, avi, mov, etc).
+
+## Core Video Player Features
+- **Video Sources**: Supports both URL input and local file loading via native dialog
+- **Custom Controls**: Built-in HTML5 video element with custom overlay controls (not using external video libraries)
+- **File Formats**: Configured for mp4, avi, mov, mkv, wmv, flv, webm, m4v via main process dialog filters
+- **Local File Protocol**: Converts file paths to `file://` URLs for video element compatibility
+- **Fullscreen API**: Uses native browser fullscreen API with custom CSS states
 
 ## Developer Workflows
-- **Start (Development)**: `npm run start` (runs main and renderer with hot reload)
-- **Build (Production)**: `npm run build` (builds main and renderer)
-- **Package App**: `npm run package` (builds and packages for distribution)
-- **Lint**: `npm run lint` / `npm run lint:fix`
-- **Test**: `npm test` (Jest, tests in `src/__tests__/`)
-- **Rebuild Native Modules**: `npm run rebuild` (for Electron native deps)
+- **Start (Development)**: `npm run start` (hot reload for both main and renderer)
+- **Build (Production)**: `npm run build` (webpack builds main + renderer)
+- **Package App**: `npm run package` (electron-builder packages for distribution)
+- **DLL Build**: `npm run build:dll` (pre-builds vendor dependencies)
+- **Test**: `npm test` (Jest with jsdom for renderer components)
+- **Lint**: `npm run lint` / `npm run lint:fix` (ESLint with TypeScript)
 
-## Conventions & Patterns
-- **TypeScript**: Strict mode, `es2022` target, React JSX.
-- **IPC**: Use `ipcMain`/`ipcRenderer` for main-renderer communication. Example: `ipc-example` channel in `main.ts`.
-- **Assets**: All icons and images in `assets/`.
-- **Environment**: `NODE_ENV` controls dev/prod logic (dev tools, source maps, menu options).
-- **Webpack**: Configs in `.erb/configs/`, DLL build for preload and renderer.
-- **Testing**: Jest with custom mocks for assets/styles. See `package.json` for setup.
+## IPC Communication Patterns
+- **File Dialog**: `ipcMain.handle('open-video-file')` returns file path or null
+- **Renderer Usage**: `window.electron.openVideoFile()` (exposed via preload script)
+- **Type Safety**: `ElectronHandler` type exported from preload for renderer TypeScript support
+- **Security**: contextBridge used instead of nodeIntegration for secure API exposure
 
-## Integration Points
-- **Electron Updater**: Auto-update via `electron-updater` in main process.
-- **DevTools Extensions**: Installs React DevTools in dev mode.
-- **External Links**: Opened in browser via `shell.openExternal`.
+## Styling & UI Conventions
+- **Dark Theme**: Professional dark gradient background with transparency effects
+- **CSS Custom Properties**: Consistent spacing and color scheme throughout
+- **Responsive Design**: Aspect ratio maintained (16:9) with max-width container
+- **Control Overlays**: Positioned absolutely over video with hover/focus states
+- **No External UI Libraries**: Pure CSS styling without component libraries
 
-## Examples
-- **IPC Example**: See `ipcMain.on('ipc-example', ...)` in `main.ts`.
-- **Menu Customization**: See `MenuBuilder` in `menu.ts` for platform/dev-specific menus.
-- **Renderer Routing**: See `App.tsx` for React Router usage.
+## File Structure Specifics
+- `src/main/main.ts` — Window creation, IPC handlers, file dialogs
+- `src/main/preload.ts` — Secure API bridge (openVideoFile method)
+- `src/renderer/App.tsx` — Main video player component with controls
+- `src/renderer/App.css` — Complete video player styling (440+ lines)
+- `src/renderer/preload.d.ts` — TypeScript definitions for electron APIs
+- `assets/` — App icons for packaging (multiple sizes/formats)
 
-## Key Files & Directories
-- `src/main/` — Electron main process code
-- `src/renderer/` — React renderer code
-- `assets/` — App icons and images
-- `.erb/configs/` — Webpack configs
-- `release/` — Build/package output
-
----
-For more details, see [electron-react-boilerplate docs](https://electron-react-boilerplate.js.org/).
+## Build System Notes
+- **Webpack Config**: Separate configs for main, renderer, and preload in `.erb/configs/`
+- **TypeScript**: Strict mode, es2022 target, node16 module resolution
+- **Hot Reload**: electronmon watches main process, webpack-dev-server for renderer
+- **Asset Handling**: File loader for videos, url loader for images, css-loader for styles
+- **DLL Optimization**: Pre-built vendor bundles for faster development builds

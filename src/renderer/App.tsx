@@ -1,5 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import './App.css';
+import {
+  SubtitleCue,
+  parseSRT,
+  getCurrentSubtitle,
+} from './utils/subtitleParser';
+import { Button, SubtitleSettings } from '../components/ui';
 
 function VideoPlayerUI() {
   const [url, setUrl] = useState('https://dafftube.org/wp-content/uploads/2014/01/Sample_1280x720_mp4.mp4');
@@ -9,6 +15,12 @@ function VideoPlayerUI() {
   const [volume, setVolume] = useState(1);
   const [muted, setMuted] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const [subtitles, setSubtitles] = useState<SubtitleCue[]>([]);
+  const [currentSubtitle, setCurrentSubtitle] = useState<SubtitleCue | null>(null);
+  const [subtitleDelay, setSubtitleDelay] = useState(0);
+  const [subtitleSize, setSubtitleSize] = useState(18);
+  const [subtitlePosition, setSubtitlePosition] = useState<'onscreen' | 'below'>('onscreen');
+  const [showSubtitleSettings, setShowSubtitleSettings] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -27,7 +39,22 @@ function VideoPlayerUI() {
     }
   };
 
-  const togglePlay = () => {
+  const handleLoadSubtitleFile = async () => {
+    try {
+      const filePath = await window.electron.openSubtitleFile();
+      if (filePath) {
+        const content = await window.electron.readSubtitleFile(filePath);
+        if (content) {
+          const parsedSubtitles = parseSRT(content);
+          setSubtitles(parsedSubtitles);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading subtitle file:', error);
+    }
+  };
+
+  const togglePlay = useCallback(() => {
     if (videoRef.current) {
       if (playing) {
         videoRef.current.pause();
@@ -36,11 +63,15 @@ function VideoPlayerUI() {
       }
       setPlaying(!playing);
     }
-  };
+  }, [playing]);
 
   const handleTimeUpdate = () => {
     if (videoRef.current) {
-      setCurrentTime(videoRef.current.currentTime);
+      const time = videoRef.current.currentTime;
+      setCurrentTime(time);
+      // Update current subtitle based on video time with delay adjustment
+      const subtitle = getCurrentSubtitle(subtitles, time, subtitleDelay);
+      setCurrentSubtitle(subtitle);
     }
   };
 
@@ -86,6 +117,53 @@ function VideoPlayerUI() {
     setFullscreen(!fullscreen);
   };
 
+  const toggleSubtitleSettings = () => {
+    setShowSubtitleSettings(!showSubtitleSettings);
+  };
+
+  const handleSubtitleDelayChange = (delay: number) => {
+    setSubtitleDelay(delay);
+  };
+
+  const handleSubtitleSizeChange = (size: number) => {
+    setSubtitleSize(size);
+  };
+
+  const handleSubtitlePositionChange = (position: 'onscreen' | 'below') => {
+    setSubtitlePosition(position);
+  };
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (!videoRef.current) return;
+
+    switch (e.key) {
+      case 'ArrowLeft': {
+        e.preventDefault();
+        const newTimeBackward = Math.max(0, videoRef.current.currentTime - 2);
+        videoRef.current.currentTime = newTimeBackward;
+        setCurrentTime(newTimeBackward);
+        break;
+      }
+      case 'ArrowRight': {
+        e.preventDefault();
+        const newTimeForward = Math.min(
+          duration,
+          videoRef.current.currentTime + 2,
+        );
+        videoRef.current.currentTime = newTimeForward;
+        setCurrentTime(newTimeForward);
+        break;
+      }
+      case ' ': {
+        e.preventDefault();
+        togglePlay();
+        break;
+      }
+      default:
+        break;
+    }
+  }, [duration, togglePlay]);
+
   const formatTime = (time: number) => {
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
@@ -98,8 +176,16 @@ function VideoPlayerUI() {
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    return () =>
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleKeyDown]);
 
   return (
     <div className="video-player-container">
@@ -115,6 +201,16 @@ function VideoPlayerUI() {
           playsInline
         />
         
+        {/* Subtitle display */}
+        {currentSubtitle && subtitlePosition === 'onscreen' && (
+          <div 
+            className="subtitle-display"
+            style={{ fontSize: `${subtitleSize}px` }}
+          >
+            {currentSubtitle.text}
+          </div>
+        )}
+        
         <div className="custom-controls">
           <div className="progress-container">
             <input
@@ -129,18 +225,18 @@ function VideoPlayerUI() {
           
           <div className="controls-row">
             <div className="left-controls">
-              <button onClick={togglePlay} className="control-btn play-btn">
+              <Button onClick={togglePlay} variant="primary" className="control-btn play-btn">
                 {playing ? 'PAUSE' : 'PLAY'}
-              </button>
+              </Button>
               <span className="time-display">
                 {formatTime(currentTime)} / {formatTime(duration)}
               </span>
             </div>
             
             <div className="right-controls">
-              <button onClick={toggleMute} className="control-btn mute-btn">
+              <Button onClick={toggleMute} variant="primary" className="control-btn mute-btn">
                 {muted ? 'UNMUTE' : 'MUTE'}
-              </button>
+              </Button>
               <input
                 type="range"
                 min="0"
@@ -151,13 +247,28 @@ function VideoPlayerUI() {
                 className="volume-slider"
               />
               <span className="volume-display">{Math.round(volume * 100)}%</span>
-              <button onClick={toggleFullscreen} className="control-btn fullscreen-btn">
+              {subtitles.length > 0 && (
+                <Button onClick={toggleSubtitleSettings} variant="primary" className="control-btn subtitle-settings-btn">
+                  SUB
+                </Button>
+              )}
+              <Button onClick={toggleFullscreen} variant="primary" className="control-btn fullscreen-btn">
                 {fullscreen ? 'EXIT' : 'FULL'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
       </div>
+      
+      {/* Below video subtitle display */}
+      {currentSubtitle && subtitlePosition === 'below' && (
+        <div 
+          className="subtitle-display-below"
+          style={{ fontSize: `${subtitleSize}px` }}
+        >
+          {currentSubtitle.text}
+        </div>
+      )}
       
       <div className="url-input">
         <input
@@ -167,14 +278,34 @@ function VideoPlayerUI() {
           placeholder="Enter video URL..."
           className="url-field"
         />
-        <button
-          type="button"
+        <Button
           onClick={handleLoadVideoFile}
+          variant="secondary"
+          size="large"
           className="load-file-btn"
         >
           Load Video File
-        </button>
+        </Button>
+        <Button
+          onClick={handleLoadSubtitleFile}
+          variant="secondary"
+          className="load-file-btn"
+        >
+          Load Subtitle File
+        </Button>
       </div>
+      
+      <SubtitleSettings
+        isOpen={showSubtitleSettings}
+        onClose={() => setShowSubtitleSettings(false)}
+        subtitleDelay={subtitleDelay}
+        onDelayChange={handleSubtitleDelayChange}
+        subtitleSize={subtitleSize}
+        onSizeChange={handleSubtitleSizeChange}
+        subtitlePosition={subtitlePosition}
+        onPositionChange={handleSubtitlePositionChange}
+        subtitlesLoaded={subtitles.length > 0}
+      />
     </div>
   );
 }
