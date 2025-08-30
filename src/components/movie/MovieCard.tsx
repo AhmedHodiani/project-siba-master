@@ -46,7 +46,7 @@ export function MovieCard({
   const hasFileIssues = fileValidation && (!fileValidation.mp4Exists || !fileValidation.srtExists);
 
   return (
-    <div className={`movie-card ${hasFileIssues ? 'file-error' : ''}`}>
+    <div className={`movie-card ${hasFileIssues ? 'file-error' : ''}`} onClick={() => hasFileIssues ? undefined : onPlay(movie)}>
       <div className="movie-card-header">
         <h3 className="movie-title" title={movie.title}>
           {movie.title}
@@ -116,16 +116,6 @@ export function MovieCard({
             )}
           </div>
         )}
-        <div className="movie-card-footer">
-          <Button
-            onClick={() => onPlay(movie)}
-            variant="primary"
-            className="play-btn"
-            disabled={hasFileIssues}
-          >
-            {movie.last_position > 0 ? 'Resume' : 'Play'}
-          </Button>
-        </div>
       </div>
     </div>
   );
