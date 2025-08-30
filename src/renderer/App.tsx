@@ -8,7 +8,7 @@ import {
 import { Button, SubtitleSettings } from '../components/ui';
 
 function VideoPlayerUI() {
-  const [url, setUrl] = useState('https://dafftube.org/wp-content/uploads/2014/01/Sample_1280x720_mp4.mp4');
+  const [url, setUrl] = useState("file:///home/z3ban/Downloads/how.to.train.your.dragon.(2010).ger.2cd.(12095245)/Drachenzaehmen.Leicht.Gemacht1.2010.1080P.Bluray.mp4");
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -17,7 +17,7 @@ function VideoPlayerUI() {
   const [fullscreen, setFullscreen] = useState(false);
   const [subtitles, setSubtitles] = useState<SubtitleCue[]>([]);
   const [currentSubtitle, setCurrentSubtitle] = useState<SubtitleCue | null>(null);
-  const [subtitleDelay, setSubtitleDelay] = useState(0);
+  const [subtitleDelay, setSubtitleDelay] = useState(24);
   const [subtitleSize, setSubtitleSize] = useState(18);
   const [subtitlePosition, setSubtitlePosition] = useState<'onscreen' | 'below'>('onscreen');
   const [showSubtitleSettings, setShowSubtitleSettings] = useState(false);
@@ -133,36 +133,96 @@ function VideoPlayerUI() {
     setSubtitlePosition(position);
   };
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (!videoRef.current) return;
-
-    switch (e.key) {
-      case 'ArrowLeft': {
-        e.preventDefault();
-        const newTimeBackward = Math.max(0, videoRef.current.currentTime - 2);
-        videoRef.current.currentTime = newTimeBackward;
-        setCurrentTime(newTimeBackward);
-        break;
-      }
-      case 'ArrowRight': {
-        e.preventDefault();
-        const newTimeForward = Math.min(
-          duration,
-          videoRef.current.currentTime + 2,
-        );
-        videoRef.current.currentTime = newTimeForward;
-        setCurrentTime(newTimeForward);
-        break;
-      }
-      case ' ': {
-        e.preventDefault();
-        togglePlay();
-        break;
-      }
-      default:
-        break;
+  const seekToPreviousSubtitle = useCallback(() => {
+    if (!videoRef.current || subtitles.length === 0) return;
+    
+    const currentTime = videoRef.current.currentTime;
+    // Find the previous subtitle - we need to find subtitles that would be displayed
+    // at a time before the current video time (accounting for delay)
+    const adjustedCurrentTime = currentTime + subtitleDelay;
+    const previousSubtitles = subtitles.filter(sub => sub.startTime < adjustedCurrentTime - 0.5);
+    
+    if (previousSubtitles.length > 0) {
+      // Get the last (most recent) previous subtitle
+      const previousSubtitle = previousSubtitles[previousSubtitles.length - 1];
+      // Seek to the video time where this subtitle should appear (subtract delay)
+      const seekTime = previousSubtitle.startTime - subtitleDelay;
+      videoRef.current.currentTime = seekTime;
+      setCurrentTime(seekTime);
+    } else if (subtitles.length > 0) {
+      // If no previous subtitle found, go to the first subtitle
+      const seekTime = subtitles[0].startTime - subtitleDelay;
+      videoRef.current.currentTime = seekTime;
+      setCurrentTime(seekTime);
     }
-  }, [duration, togglePlay]);
+  }, [subtitles, subtitleDelay]);
+
+  const seekToNextSubtitle = useCallback(() => {
+    if (!videoRef.current || subtitles.length === 0) return;
+    
+    const currentTime = videoRef.current.currentTime;
+    // Find the next subtitle - we need to find subtitles that would be displayed
+    // at a time after the current video time (accounting for delay)
+    const adjustedCurrentTime = currentTime + subtitleDelay;
+    const nextSubtitle = subtitles.find(sub => sub.startTime > adjustedCurrentTime + 0.5);
+    
+    if (nextSubtitle) {
+      // Seek to the video time where this subtitle should appear (subtract delay)
+      const seekTime = nextSubtitle.startTime - subtitleDelay;
+      videoRef.current.currentTime = seekTime;
+      setCurrentTime(seekTime);
+    } else if (subtitles.length > 0) {
+      // If no next subtitle found, go to the last subtitle
+      const lastSubtitle = subtitles[subtitles.length - 1];
+      const seekTime = lastSubtitle.startTime - subtitleDelay;
+      videoRef.current.currentTime = seekTime;
+      setCurrentTime(seekTime);
+    }
+  }, [subtitles, subtitleDelay]);
+
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (!videoRef.current) return;
+
+      switch (e.key) {
+        case 'ArrowLeft': {
+          e.preventDefault();
+          const newTimeBackward = Math.max(0, videoRef.current.currentTime - 2);
+          videoRef.current.currentTime = newTimeBackward;
+          setCurrentTime(newTimeBackward);
+          break;
+        }
+        case 'ArrowRight': {
+          e.preventDefault();
+          const newTimeForward = Math.min(
+            duration,
+            videoRef.current.currentTime + 2,
+          );
+          videoRef.current.currentTime = newTimeForward;
+          setCurrentTime(newTimeForward);
+          break;
+        }
+        case ' ': {
+          e.preventDefault();
+          togglePlay();
+          break;
+        }
+        case '1': {
+          e.preventDefault();
+          seekToPreviousSubtitle();
+          break;
+        }
+        case '2': {
+          e.preventDefault();
+          seekToNextSubtitle();
+          break;
+        }
+        default:
+          break;
+      }
+    },
+    [duration, togglePlay, seekToPreviousSubtitle, seekToNextSubtitle],
+  );
 
   const formatTime = (time: number) => {
     const minutes = Math.floor(time / 60);

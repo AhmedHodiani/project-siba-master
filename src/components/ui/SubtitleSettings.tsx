@@ -77,6 +77,14 @@ export function SubtitleSettings({
                 </label>
                 <div className="delay-controls">
                   <Button
+                    onClick={() => adjustDelay(-1)}
+                    variant="primary"
+                    size="small"
+                    className="delay-btn"
+                  >
+                    -1s
+                  </Button>
+                  <Button
                     onClick={() => adjustDelay(-0.5)}
                     variant="primary"
                     size="small"
@@ -116,6 +124,14 @@ export function SubtitleSettings({
                     className="delay-btn"
                   >
                     +0.5s
+                  </Button>
+                  <Button
+                    onClick={() => adjustDelay(1)}
+                    variant="primary"
+                    size="small"
+                    className="delay-btn"
+                  >
+                    +1s
                   </Button>
                 </div>
                 
@@ -182,8 +198,11 @@ export function SubtitleSettings({
               
               <div className="setting-info">
                 <p className="info-text">
-                  Adjust the subtitle timing to sync with the video. 
+                  Adjust the subtitle timing to sync with the video.
                   Positive values delay subtitles, negative values advance them.
+                </p>
+                <p className="info-text keyboard-shortcuts">
+                  <strong>Keyboard shortcuts:</strong> Press "1" to go to previous subtitle, "2" to go to next subtitle
                 </p>
               </div>
             </>
