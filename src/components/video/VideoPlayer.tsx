@@ -34,37 +34,6 @@ export default function VideoPlayer({ movie }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) =>
-    setUrl(e.target.value);
-
-  const handleLoadVideoFile = async () => {
-    try {
-      const filePath = await window.electron.openVideoFile();
-      if (filePath) {
-        // Convert file path to file:// URL for video element
-        const fileUrl = `file://${filePath}`;
-        setUrl(fileUrl);
-      }
-    } catch (error) {
-      console.error('Error loading video file:', error);
-    }
-  };
-
-  const handleLoadSubtitleFile = async () => {
-    try {
-      const filePath = await window.electron.openSubtitleFile();
-      if (filePath) {
-        const content = await window.electron.readSubtitleFile(filePath);
-        if (content) {
-          const parsedSubtitles = parseSRT(content);
-          setSubtitles(parsedSubtitles);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading subtitle file:', error);
-    }
-  };
-
   const togglePlay = useCallback(() => {
     if (videoRef.current) {
       if (playing) {
