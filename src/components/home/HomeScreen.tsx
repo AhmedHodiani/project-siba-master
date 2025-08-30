@@ -8,7 +8,7 @@ import './HomeScreen.css';
 
 interface HomeScreenProps {
   onPlayMovie: (movie: MovieRecord) => void;
-  onClose: () => void;
+  onClose?: () => void;
 }
 
 export function HomeScreen({ onPlayMovie, onClose }: HomeScreenProps) {

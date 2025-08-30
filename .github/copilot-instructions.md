@@ -1,50 +1,60 @@
-# Copilot Instructions for Video Player Electron App
+# Copilot Instructions for Movie Library Electron App
 
-## Project Architecture (Video Player)
-- **Electron Main Process**: Entry at `src/main/main.ts`. Handles window creation, IPC for file dialogs, auto-updates, and menu setup. Key IPC: `open-video-file` for native file selection.
-- **Renderer Process**: React video player UI at `src/renderer/App.tsx`. Custom HTML5 video controls with fullscreen, progress, volume controls. No routing—single page app.
-- **Preload Scripts**: `src/main/preload.ts` exposes `openVideoFile()` method to renderer via contextBridge for secure file access.
-- **File System Integration**: Handles local video files via `dialog.showOpenDialog()` with video format filters (mp4, avi, mov, etc).
+## Project Architecture (Movie Management + Video Player)
+- **Electron Main Process**: Entry at `src/main/main.ts`. Handles window creation, IPC for file dialogs, ffmpeg video frame extraction, and menu setup. Key IPC: `open-video-file`, `open-subtitle-file`, `extract-video-frames`, `file-exists`.
+- **Renderer Process**: React app at `src/renderer/App.tsx`. Multi-screen UI with HomeScreen for movie library management and VideoPlayerUI for playback. State-driven navigation between library and player.
+- **PocketBase Backend**: Self-hosted database at `pocketbase/pocketbase` (binary). Stores movie metadata, thumbnails, watch progress. Collections: `movies` with file paths, subtitles, positions.
+- **Component Architecture**: Modular UI with `components/home/HomeScreen`, `components/movie/MovieCard`, `components/movie/AddMovieDialog`, and custom `components/ui/Button`.
 
-## Core Video Player Features
-- **Video Sources**: Supports both URL input and local file loading via native dialog
-- **Custom Controls**: Built-in HTML5 video element with custom overlay controls (not using external video libraries)
-- **File Formats**: Configured for mp4, avi, mov, mkv, wmv, flv, webm, m4v via main process dialog filters
-- **Local File Protocol**: Converts file paths to `file://` URLs for video element compatibility
-- **Fullscreen API**: Uses native browser fullscreen API with custom CSS states
+## Database Integration (PocketBase)
+- **Service Layer**: `src/services/pocketbase.ts` handles all database operations with typed methods
+- **Type Safety**: `src/types/database.ts` defines `MovieRecord`, `CreateMovieData`, `UpdateMovieData` 
+- **Movie Schema**: `{ title, mp4_path, srt_path?, srt_delay, last_position, duration?, thumbnail? }`
+- **File Validation**: Real-time checks via `window.electron.fileExists()` for broken file paths
+- **Auto-Updates**: Last accessed time and playback position automatically tracked
+
+## Core Movie Features
+- **Library Management**: Add movies by selecting video files, auto-extract thumbnails using ffmpeg
+- **Subtitle Support**: SRT parsing with custom delay adjustment, position controls (on-screen/below)
+- **Watch Progress**: Resume functionality with automatic position saving on navigation
+- **Search & Filter**: Real-time search with PocketBase filtering, recently accessed sorting
+- **Thumbnail Generation**: FFmpeg frame extraction during movie addition, base64 storage
 
 ## Developer Workflows
-- **Start (Development)**: `npm run start` (hot reload for both main and renderer)
-- **Build (Production)**: `npm run build` (webpack builds main + renderer)
-- **Package App**: `npm run package` (electron-builder packages for distribution)
-- **DLL Build**: `npm run build:dll` (pre-builds vendor dependencies)
-- **Test**: `npm test` (Jest with jsdom for renderer components)
-- **Lint**: `npm run lint` / `npm run lint:fix` (ESLint with TypeScript)
+- **Start Backend**: `./pocketbase/pocketbase serve` (starts database on :8090)
+- **Start Frontend**: `npm run start` (hot reload for both main and renderer)
+- **Full Development**: Run both PocketBase and npm start concurrently
+- **Build**: `npm run build` (webpack builds main + renderer)
+- **Package**: `npm run package` (electron-builder with PocketBase binary bundling)
 
 ## IPC Communication Patterns
-- **File Dialog**: `ipcMain.handle('open-video-file')` returns file path or null
-- **Renderer Usage**: `window.electron.openVideoFile()` (exposed via preload script)
-- **Type Safety**: `ElectronHandler` type exported from preload for renderer TypeScript support
-- **Security**: contextBridge used instead of nodeIntegration for secure API exposure
+- **File System**: `openVideoFile()`, `openSubtitleFile()`, `readSubtitleFile()`, `fileExists()`
+- **Video Processing**: `extractVideoFrames(videoPath, count)` for thumbnail generation using ffmpeg
+- **Type Safety**: All IPC methods typed in `src/main/preload.ts` and exposed via `ElectronHandler`
+- **Security**: contextBridge isolates main process, no nodeIntegration
 
-## Styling & UI Conventions
-- **Dark Theme**: Professional dark gradient background with transparency effects
-- **CSS Custom Properties**: Consistent spacing and color scheme throughout
-- **Responsive Design**: Aspect ratio maintained (16:9) with max-width container
-- **Control Overlays**: Positioned absolutely over video with hover/focus states
-- **No External UI Libraries**: Pure CSS styling without component libraries
+## UI State Management Patterns
+- **Modal Overlays**: `HomeScreen` overlays video player, controlled by `showHomeScreen` state
+- **Component Communication**: Parent-child props for movie selection, playback control
+- **Persistent State**: Video progress auto-saved to PocketBase, subtitle settings in local state
+- **Loading States**: Consistent loading/error/empty states across movie management flows
+
+## Key Integration Points
+- **PocketBase Service**: Singleton instance handles all database operations with async/await
+- **Movie Lifecycle**: Add → Validate → Extract Thumbnails → Store → Play → Track Progress
+- **File System Bridge**: Electron IPC validates file existence, reads subtitles, extracts frames
+- **Video Player State**: Custom controls with keyboard shortcuts (space=play, 1/2=subtitle nav, arrows=seek)
 
 ## File Structure Specifics
-- `src/main/main.ts` — Window creation, IPC handlers, file dialogs
-- `src/main/preload.ts` — Secure API bridge (openVideoFile method)
-- `src/renderer/App.tsx` — Main video player component with controls
-- `src/renderer/App.css` — Complete video player styling (440+ lines)
-- `src/renderer/preload.d.ts` — TypeScript definitions for electron APIs
-- `assets/` — App icons for packaging (multiple sizes/formats)
+- `src/services/pocketbase.ts` — Database service layer with CRUD operations
+- `src/types/database.ts` — TypeScript definitions for all database records
+- `src/components/home/HomeScreen.tsx` — Movie library grid with search/add functionality
+- `src/components/movie/AddMovieDialog.tsx` — Multi-step movie addition with thumbnail selection
+- `pocketbase/` — Self-contained database with migrations, storage, binary
+- `src/renderer/utils/subtitleParser.ts` — SRT parsing with time synchronization
 
-## Build System Notes
-- **Webpack Config**: Separate configs for main, renderer, and preload in `.erb/configs/`
-- **TypeScript**: Strict mode, es2022 target, node16 module resolution
-- **Hot Reload**: electronmon watches main process, webpack-dev-server for renderer
-- **Asset Handling**: File loader for videos, url loader for images, css-loader for styles
-- **DLL Optimization**: Pre-built vendor bundles for faster development builds
+## Critical Dependencies
+- **PocketBase**: Database backend, must be running for movie operations
+- **FFmpeg**: Required for thumbnail extraction (system dependency)
+- **File System Access**: Relies on Electron's native file dialogs and fs access
+- **React State**: Complex state management for multi-screen navigation and video controls
