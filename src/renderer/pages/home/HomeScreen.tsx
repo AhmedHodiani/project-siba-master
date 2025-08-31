@@ -1,3 +1,9 @@
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable no-console */
+/* eslint-disable no-alert */
+/* eslint-disable no-restricted-globals */
+/* eslint-disable import/no-named-as-default */
+/* eslint-disable import/prefer-default-export */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MovieRecord } from '@/lib/types/database';
@@ -23,23 +29,25 @@ export function HomeScreen() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const result = await pocketBaseService.getMovies({
         sort: '-last_accessed',
       });
-      
+
       setMovies(result.items);
-      
+
       // Validate file existence for all movies
-      const validations: Record<string, { mp4Exists: boolean; srtExists: boolean }> = {};
+      const validations: Record<
+        string,
+        { mp4Exists: boolean; srtExists: boolean }
+      > = {};
       await Promise.all(
         result.items.map(async (movie) => {
           const validation = await pocketBaseService.validateMovieFiles(movie);
           validations[movie.id] = validation;
-        })
+        }),
       );
       setFileValidations(validations);
-      
     } catch (err) {
       console.error('Error loading movies:', err);
       setError('Failed to load movies. Make sure PocketBase is running.');
@@ -48,25 +56,6 @@ export function HomeScreen() {
     }
   }, []);
 
-  // Search movies
-  const searchMovies = useCallback(async (query: string) => {
-    if (!query.trim()) {
-      loadMovies();
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const searchResults = await pocketBaseService.searchMovies(query);
-      setMovies(searchResults);
-    } catch (err) {
-      console.error('Error searching movies:', err);
-      setError('Failed to search movies.');
-    } finally {
-      setLoading(false);
-    }
-  }, [loadMovies]);
-
   // Handle movie added through dialog
   const handleMovieAdded = useCallback(() => {
     setShowAddDialog(false);
@@ -74,73 +63,65 @@ export function HomeScreen() {
   }, [loadMovies]);
 
   // Play movie
-  const handlePlayMovie = useCallback(async (movie: MovieRecord) => {
-    try {
-      // Update last accessed
-      await pocketBaseService.updateLastAccessed(movie.id);
-      navigate(`/movie/${movie.id}`);
-    } catch (err) {
-      console.error('Error updating movie access:', err);
-      // Still play the movie even if update fails
-      navigate(`/movie/${movie.id}`);
-    }
-  }, [navigate]);
+  const handlePlayMovie = useCallback(
+    async (movie: MovieRecord) => {
+      try {
+        // Update last accessed
+        await pocketBaseService.updateLastAccessed(movie.id);
+        navigate(`/movie/${movie.id}`);
+      } catch (err) {
+        console.error('Error updating movie access:', err);
+        // Still play the movie even if update fails
+        navigate(`/movie/${movie.id}`);
+      }
+    },
+    [navigate],
+  );
 
   // Delete movie
-  const handleDeleteMovie = useCallback(async (movie: MovieRecord) => {
-    if (!confirm(`Are you sure you want to remove "${movie.title}" from your library?`)) {
-      return;
-    }
+  const handleDeleteMovie = useCallback(
+    async (movie: MovieRecord) => {
+      if (
+        !confirm(
+          `Are you sure you want to remove "${movie.title}" from your library?`,
+        )
+      ) {
+        return;
+      }
 
-    try {
-      await pocketBaseService.deleteMovie(movie.id);
-      loadMovies();
-    } catch (err) {
-      console.error('Error deleting movie:', err);
-      alert('Failed to delete movie. Please try again.');
-    }
-  }, [loadMovies]);
-
-  // Handle search input
-  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value;
-    setSearchQuery(query);
-    
-    // Debounce search
-    const timeoutId = setTimeout(() => {
-      searchMovies(query);
-    }, 300);
-
-    return () => clearTimeout(timeoutId);
-  }, [searchMovies]);
+      try {
+        await pocketBaseService.deleteMovie(movie.id);
+        loadMovies();
+      } catch (err) {
+        console.error('Error deleting movie:', err);
+        alert('Failed to delete movie. Please try again.');
+      }
+    },
+    [loadMovies],
+  );
 
   // Load movies on component mount
   useEffect(() => {
     loadMovies();
   }, [loadMovies]);
 
-  const filteredMovies = movies.filter(movie =>
-    movie.title.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredMovies = movies.filter((movie) =>
+    movie.title.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
     <div className="home-screen">
       <div className="home-header">
-        <div className="header-top">
+        <div
+          className="header-controls"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            width: '100%',
+          }}
+        >
           <h1 className="home-title">Movie Library</h1>
-        </div>
-        
-        <div className="header-controls">
-          <div className="search-container">
-            <input
-              type="text"
-              placeholder="Search movies..."
-              value={searchQuery}
-              onChange={handleSearchChange}
-              className="search-input"
-            />
-          </div>
-          
           <Button
             onClick={() => setShowAddDialog(true)}
             variant="primary"
@@ -180,7 +161,10 @@ export function HomeScreen() {
             ) : (
               <>
                 <p>No movies in your library yet.</p>
-                <Button onClick={() => setShowAddDialog(true)} variant="primary">
+                <Button
+                  onClick={() => setShowAddDialog(true)}
+                  variant="primary"
+                >
                   Add Your First Movie
                 </Button>
               </>

@@ -1,3 +1,6 @@
+/* eslint-disable react/button-has-type */
+/* eslint-disable react/require-default-props */
+/* eslint-disable import/prefer-default-export */
 import React from 'react';
 import './Button.css';
 
@@ -24,7 +27,7 @@ export function Button({
   const variantClass = `btn--${variant}`;
   const sizeClass = `btn--${size}`;
   const disabledClass = disabled ? 'btn--disabled' : '';
-  
+
   const combinedClasses = [
     baseClasses,
     variantClass,

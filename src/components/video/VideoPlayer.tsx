@@ -30,12 +30,16 @@ interface VideoPlayerProps {
   onPositionChange: (position: 'onscreen' | 'below') => void;
   // Translation
   onOpenTranslation?: () => void;
+  // Control props
+  disableKeyboardShortcuts?: boolean;
 }
 
 export interface VideoPlayerRef {
   getCurrentPosition: () => number;
   saveCurrentPosition: () => Promise<void>;
   seekTo: (time: number) => void;
+  pause: () => void;
+  play: () => void;
 }
 
 const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
@@ -54,6 +58,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
       onSizeChange,
       onPositionChange,
       onOpenTranslation,
+      disableKeyboardShortcuts = false,
     },
     ref,
   ) => {
@@ -240,6 +245,18 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
             setCurrentTime(time);
           }
         },
+        pause: () => {
+          if (videoRef.current) {
+            videoRef.current.pause();
+            setPlaying(false);
+          }
+        },
+        play: () => {
+          if (videoRef.current) {
+            videoRef.current.play();
+            setPlaying(true);
+          }
+        },
       }),
       [movie.id],
     );
@@ -275,11 +292,13 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
     }, []);
 
     useEffect(() => {
-      document.addEventListener('keydown', handleKeyDown);
-      return () => {
-        document.removeEventListener('keydown', handleKeyDown);
-      };
-    }, [handleKeyDown]);
+      if (!disableKeyboardShortcuts) {
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+          document.removeEventListener('keydown', handleKeyDown);
+        };
+      }
+    }, [handleKeyDown, disableKeyboardShortcuts]);
 
     // Cleanup timeout on unmount
     useEffect(() => {

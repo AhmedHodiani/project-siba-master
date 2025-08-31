@@ -1,21 +1,32 @@
+/* eslint-disable consistent-return */
+/* eslint-disable promise/always-return */
+/* eslint-disable import/no-named-as-default */
+/* eslint-disable import/prefer-default-export */
+/* eslint-disable react/function-component-definition */
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import VideoPlayer from '../../../components/video/VideoPlayer';
+import VideoPlayer, { VideoPlayerRef } from '../../../components/video/VideoPlayer';
 import GoldenLayoutWrapper from '../../../components/layout/GoldenLayoutWrapper';
-import { Button, TranslationModal } from '../../../components/ui';
-import { MovieRecord } from '../../../lib/types/database';
+import { 
+  Button, 
+  TranslationModal, 
+  IframeTranslationWidget,
+  AddFlashcardDialog,
+  ViewFlashcardsDialog
+} from '../../../components/ui';
+import { MovieRecord, FlashcardRecord } from '../../../lib/types/database';
 import {
   SubtitleCue,
   parseSRT,
   getCurrentSubtitle,
 } from '../../utils/subtitleParser';
 import pocketBaseService from '../../../lib/services/pocketbase';
-import "./MovieDetails.css"
+import './MovieDetails.css';
 
 export const MovieDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const videoPlayerRef = useRef<any>(null);
+  const videoPlayerRef = useRef<VideoPlayerRef>(null);
   const [movie, setMovie] = useState<MovieRecord | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -26,14 +37,32 @@ export const MovieDetails: React.FC = () => {
   );
   const [subtitleDelay, setSubtitleDelay] = useState(0);
   const [subtitleSize, setSubtitleSize] = useState(24);
-  const [subtitlePosition, setSubtitlePosition] = useState<'onscreen' | 'below'>('below');
+  const [subtitlePosition, setSubtitlePosition] = useState<
+    'onscreen' | 'below'
+  >('below');
   const [currentTime, setCurrentTime] = useState(0);
 
   // Translation state
-  const [showTranslation, setShowTranslation] = useState(false);
+  const [showTranslation, setShowTranslation] = useState(true);
   const [translationText, setTranslationText] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showTranslationModal, setShowTranslationModal] = useState(false);
+
+  // Flashcard state
+  const [flashcards, setFlashcards] = useState<FlashcardRecord[]>([]);
+  const [showAddFlashcardDialog, setShowAddFlashcardDialog] = useState(false);
+  const [showViewFlashcardsDialog, setShowViewFlashcardsDialog] = useState(false);
+  const [flashcardsLoading, setFlashcardsLoading] = useState(false);
+
+  // Computed value to check if any dialog is open
+  const isAnyDialogOpen = showTranslationModal || showAddFlashcardDialog || showViewFlashcardsDialog;
+
+  // Handle pausing video when dialogs open
+  useEffect(() => {
+    if (isAnyDialogOpen && videoPlayerRef.current) {
+      videoPlayerRef.current.pause();
+    }
+  }, [isAnyDialogOpen]);
 
   // Auto-select subtitle text when it changes
   useEffect(() => {
@@ -52,7 +81,7 @@ export const MovieDetails: React.FC = () => {
           content: [
             {
               type: 'column',
-              width: 80,
+              width: 70,
               content: [
                 {
                   type: 'component',
@@ -70,11 +99,27 @@ export const MovieDetails: React.FC = () => {
               ],
             },
             {
-              type: 'component',
-              componentType: 'react-component',
-              componentState: { componentId: 'subtitles-and-translations' },
-              title: 'Subtitles & Translations',
+              type: 'column',
+              width: 30,
+              content: [
+                {
+                  type: 'component',
+                  componentType: 'react-component',
+                  componentState: { componentId: 'subtitles-and-translations' },
+                  title: 'Subtitles & Translations',
+                  height: 80,
+                },
+                {
+                  type: 'component',
+                  componentType: 'react-component',
+                  componentState: { componentId: 'flash-card-actions' },
+                  title: 'Flash Card Actions',
+                  height: 20,
+                },
+              ],
             },
+
+        
           ],
         },
       ],
@@ -83,25 +128,46 @@ export const MovieDetails: React.FC = () => {
   ); // Empty dependency array - config should never change
 
   // Load movie data
-  useEffect(() => {
-    const loadMovie = async () => {
-      if (!id) return;
+  const loadMovie = useCallback(async () => {
+    if (!id) return;
 
-      try {
-        const movieData = await pocketBaseService.getMovie(id);
-        setMovie(movieData);
-        setSubtitleDelay(movieData.srt_delay);
-      } catch (error) {
-        console.error('Failed to load movie:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadMovie();
+    try {
+      const movieData = await pocketBaseService.getMovie(id);
+      setMovie(movieData);
+      setSubtitleDelay(movieData.srt_delay);
+    } catch (error) {
+      console.error('Failed to load movie:', error);
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
 
-  // Load subtitles when movie changes
+  // Flashcard functions
+  const loadFlashcards = useCallback(async () => {
+    if (!movie) return;
+    
+    setFlashcardsLoading(true);
+    try {
+      const result = await pocketBaseService.getFlashcards(movie.id);
+      setFlashcards(result.items);
+    } catch (error) {
+      console.error('Error loading flashcards:', error);
+    } finally {
+      setFlashcardsLoading(false);
+    }
+  }, [movie]);
+
+  // Load movie on component mount
+  useEffect(() => {
+    loadMovie();
+  }, [loadMovie]);
+
+  // Load flashcards when movie changes
+  useEffect(() => {
+    if (movie) {
+      loadFlashcards();
+    }
+  }, [movie, loadFlashcards]);  // Load subtitles when movie changes
   useEffect(() => {
     if (movie?.srt_path) {
       window.electron
@@ -221,6 +287,55 @@ export const MovieDetails: React.FC = () => {
     }
   }, [isFullscreen, currentSubtitle, showTranslation]);
 
+  const handleAddFlashcard = useCallback(() => {
+    if (!currentSubtitle) {
+      alert('No subtitle is currently active. Please wait for a subtitle to appear or seek to a point with subtitles.');
+      return;
+    }
+    setShowAddFlashcardDialog(true);
+  }, [currentSubtitle]);
+
+  const handleCreateFlashcard = useCallback(async (data: any) => {
+    try {
+      await pocketBaseService.createFlashcard(data);
+      await loadFlashcards(); // Reload flashcards
+    } catch (error) {
+      console.error('Error creating flashcard:', error);
+      throw error;
+    }
+  }, [loadFlashcards]);
+
+  const handleEditFlashcard = useCallback((flashcard: FlashcardRecord) => {
+    // TODO: Implement edit functionality
+    console.log('Edit flashcard:', flashcard);
+  }, []);
+
+  const handleDeleteFlashcard = useCallback(async (id: string) => {
+    try {
+      await pocketBaseService.deleteFlashcard(id);
+      await loadFlashcards(); // Reload flashcards
+    } catch (error) {
+      console.error('Error deleting flashcard:', error);
+      throw error;
+    }
+  }, [loadFlashcards]);
+
+  const handleReviewFlashcard = useCallback(async (id: string, rating: 'Again' | 'Hard' | 'Good' | 'Easy') => {
+    try {
+      await pocketBaseService.reviewFlashcard(id, rating);
+      await loadFlashcards(); // Reload flashcards to show updated state
+    } catch (error) {
+      console.error('Error reviewing flashcard:', error);
+      throw error;
+    }
+  }, [loadFlashcards]);
+
+  const handleJumpToTime = useCallback((startTime: number) => {
+    if (videoPlayerRef.current) {
+      videoPlayerRef.current.seekTo(startTime);
+    }
+  }, []);
+
   const handleBack = async () => {
     // Save current position before navigating back
     if (videoPlayerRef.current) {
@@ -276,6 +391,7 @@ export const MovieDetails: React.FC = () => {
               onSizeChange={handleSubtitleSizeChange}
               onPositionChange={handleSubtitlePositionChange}
               onOpenTranslation={() => setShowTranslationModal(true)}
+              disableKeyboardShortcuts={isAnyDialogOpen}
             />
           </div>
           <div
@@ -289,7 +405,14 @@ export const MovieDetails: React.FC = () => {
               height: '100%',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '16px',
+              }}
+            >
               <h3 style={{ margin: '0', fontSize: '16px' }}>
                 Subtitles & Translations
               </h3>
@@ -305,8 +428,22 @@ export const MovieDetails: React.FC = () => {
 
             {/* Current Subtitle Display */}
             {subtitlePosition === 'below' && currentSubtitle && (
-              <div style={{ marginBottom: '16px', position: 'relative', zIndex: 30 }}>
-                <div style={{ fontSize: '14px', color: '#aaa', marginBottom: '8px' }}>Current Subtitle:</div>
+              <div
+                style={{
+                  marginBottom: '16px',
+                  position: 'relative',
+                  zIndex: 30,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: '14px',
+                    color: '#aaa',
+                    marginBottom: '8px',
+                  }}
+                >
+                  Current Subtitle:
+                </div>
                 <div
                   style={{
                     fontSize: `${subtitleSize}px`,
@@ -332,25 +469,12 @@ export const MovieDetails: React.FC = () => {
             )}
 
             {/* Translation Panel */}
-            {showTranslation && currentSubtitle && (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', marginTop: '-80px' }}>
-                <div id='overlay' />
-                <div id='overlay2' />
-                <iframe
-                  src={`https://www.bing.com/translator/?from=auto&to=en&text=${encodeURIComponent(translationText || currentSubtitle.text)}`}
-                  style={{
-                    width: '125%',
-                    height: '1000px',
-                    overflow: 'hidden',
-                    border: '1px solid #444',
-                    backgroundColor: '#fff',
-                    transform: 'scale(0.8)',
-                    transformOrigin: '0 0',
-                  }}
-                  title="Translation"
-                />
-              </div>
-            )}
+            <IframeTranslationWidget
+              text={translationText || currentSubtitle?.text || ''}
+              sourceLanguage="de"
+              targetLanguage="en"
+              isVisible={showTranslation && !!currentSubtitle}
+            />
 
             {/* No subtitle message */}
             {subtitlePosition === 'below' && !currentSubtitle && (
@@ -376,7 +500,8 @@ export const MovieDetails: React.FC = () => {
                   padding: '12px',
                 }}
               >
-                Subtitles are displayed on video. Change position to "Below Video" in subtitle settings to show here.
+                Subtitles are displayed on video. Change position to "Below
+                Video" in subtitle settings to show here.
               </div>
             )}
           </div>
@@ -384,6 +509,15 @@ export const MovieDetails: React.FC = () => {
             <span style={{ color: '#888', padding: '16px', display: 'block' }}>
               coming soon...
             </span>
+          </div>
+          <div id="flash-card-actions" style={{ backgroundColor: '#181818ff' }}>
+            <div style={{ padding: '16px' }}>
+              <span style={{ color: '#888', display: 'block', marginBottom: '8px' }}>
+                Create flash cards from subtitles and review them with free spaced repetition scheduling (FSRS) algorithms.
+              </span>
+              <Button onClick={handleAddFlashcard}>Add Flash Card</Button>
+              <Button onClick={() => setShowViewFlashcardsDialog(true)}>View all Flash Cards</Button>
+            </div>
           </div>
         </GoldenLayoutWrapper>
       </div>
@@ -394,6 +528,35 @@ export const MovieDetails: React.FC = () => {
         onClose={() => setShowTranslationModal(false)}
         selectedText={currentSubtitle?.text || ''}
       />
+
+      {/* Add Flashcard Dialog */}
+      {showAddFlashcardDialog && currentSubtitle && movie && (
+        <AddFlashcardDialog
+          isOpen={showAddFlashcardDialog}
+          onClose={() => setShowAddFlashcardDialog(false)}
+          onAdd={handleCreateFlashcard}
+          movieId={movie.id}
+          subtitleText={currentSubtitle.text}
+          startTime={currentSubtitle.startTime - subtitleDelay}
+          endTime={currentSubtitle.endTime - subtitleDelay}
+          moviePath={movie.mp4_path}
+          onJumpToTime={handleJumpToTime}
+        />
+      )}
+
+      {/* View Flashcards Dialog */}
+      {showViewFlashcardsDialog && (
+        <ViewFlashcardsDialog
+          isOpen={showViewFlashcardsDialog}
+          onClose={() => setShowViewFlashcardsDialog(false)}
+          flashcards={flashcards}
+          onEdit={handleEditFlashcard}
+          onDelete={handleDeleteFlashcard}
+          onReview={handleReviewFlashcard}
+          onJumpToTime={handleJumpToTime}
+          loading={flashcardsLoading}
+        />
+      )}
     </div>
   );
 };
