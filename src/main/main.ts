@@ -15,6 +15,7 @@ import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
+import { ollamaMainService } from './ollama-service';
 
 class AppUpdater {
   constructor() {
@@ -165,6 +166,43 @@ ipcMain.handle('extract-video-frames', async (_, videoPath: string, count: numbe
   } catch (error) {
     console.error('Error extracting video frames:', error);
     return { frames: [], duration: 0 };
+  }
+});
+
+// Ollama IPC handlers
+ipcMain.handle('ollama-is-available', async () => {
+  try {
+    return await ollamaMainService.isAvailable();
+  } catch (error) {
+    console.error('Error checking Ollama availability:', error);
+    return false;
+  }
+});
+
+ipcMain.handle('ollama-list-models', async () => {
+  try {
+    return await ollamaMainService.listModels();
+  } catch (error) {
+    console.error('Error listing Ollama models:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('ollama-chat', async (_, model: string, messages: any[]) => {
+  try {
+    return await ollamaMainService.chat(model, messages);
+  } catch (error) {
+    console.error('Error in Ollama chat:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('ollama-translate', async (_, text: string, model?: string) => {
+  try {
+    return await ollamaMainService.translateGermanToEnglish(text, model);
+  } catch (error) {
+    console.error('Error in Ollama translation:', error);
+    throw error;
   }
 });
 

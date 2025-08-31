@@ -12,7 +12,8 @@ import {
   TranslationModal, 
   IframeTranslationWidget,
   AddFlashcardDialog,
-  ViewFlashcardsDialog
+  ViewFlashcardsDialog,
+  AiChatPanel
 } from '../../../components/ui';
 import { MovieRecord, FlashcardRecord } from '../../../lib/types/database';
 import {
@@ -54,8 +55,12 @@ export const MovieDetails: React.FC = () => {
   const [showViewFlashcardsDialog, setShowViewFlashcardsDialog] = useState(false);
   const [flashcardsLoading, setFlashcardsLoading] = useState(false);
 
-  // Computed value to check if any dialog is open
+  // AI chat state
+  const [isChatInputFocused, setIsChatInputFocused] = useState(false);
+
+  // Computed value to check if any dialog is open or chat input is focused
   const isAnyDialogOpen = showTranslationModal || showAddFlashcardDialog || showViewFlashcardsDialog;
+  const shouldDisableKeyboardShortcuts = isAnyDialogOpen || isChatInputFocused;
 
   // Handle pausing video when dialogs open
   useEffect(() => {
@@ -391,7 +396,7 @@ export const MovieDetails: React.FC = () => {
               onSizeChange={handleSubtitleSizeChange}
               onPositionChange={handleSubtitlePositionChange}
               onOpenTranslation={() => setShowTranslationModal(true)}
-              disableKeyboardShortcuts={isAnyDialogOpen}
+              disableKeyboardShortcuts={shouldDisableKeyboardShortcuts}
             />
           </div>
           <div
@@ -505,10 +510,15 @@ export const MovieDetails: React.FC = () => {
               </div>
             )}
           </div>
-          <div id="ai-chat" style={{ backgroundColor: '#181818ff' }}>
-            <span style={{ color: '#888', padding: '16px', display: 'block' }}>
-              coming soon...
-            </span>
+          <div id="ai-chat" style={{ backgroundColor: '#181818ff', height: '100%' }}>
+            <AiChatPanel 
+              currentSubtitle={currentSubtitle?.text}
+              onSelectTranslation={(translation) => {
+                setTranslationText(translation);
+                setShowTranslationModal(true);
+              }}
+              onInputFocusChange={setIsChatInputFocused}
+            />
           </div>
           <div id="flash-card-actions" style={{ backgroundColor: '#181818ff' }}>
             <div style={{ padding: '16px' }}>

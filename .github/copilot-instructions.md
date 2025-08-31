@@ -1,24 +1,32 @@
 # Copilot Instructions for Movie Library Electron App
 
-## Project Architecture (Movie Management + Video Player)
+## Project Architecture (Language Learning + Spaced Repetition)
 - **Electron Main Process**: Entry at `src/main/main.ts`. Handles window creation, IPC for file dialogs, ffmpeg video frame extraction, and menu setup. Key IPC: `open-video-file`, `open-subtitle-file`, `extract-video-frames`, `file-exists`.
 - **Renderer Process**: React app at `src/renderer/App.tsx`. Simple state-driven navigation between HomeScreen (library) and MovieDetails (player). Navigation controlled by `currentScreen` state (`'home'|'video'`).
-- **PocketBase Backend**: Self-hosted database at `pocketbase/pocketbase` (binary). Stores movie metadata, thumbnails, watch progress. Collections: `movies` with file paths, subtitles, positions.
-- **Component Architecture**: Modular UI with `src/renderer/pages/home/HomeScreen`, `src/components/movie/MovieCard`, `src/components/movie/AddMovieDialog`, and `src/components/ui/` index exports.
+- **PocketBase Backend**: Self-hosted database at `pocketbase/pocketbase` (binary). Stores movie metadata, thumbnails, watch progress, flashcards with FSRS scheduling. Collections: `movies`, `flashcards`, `review_logs`.
+- **Component Architecture**: Modular UI with `src/renderer/pages/home/HomeScreen`, `src/components/movie/MovieCard`, `src/components/ui/` index exports, and `src/components/flashcard/` for spaced repetition features.
 
-## Database Integration (PocketBase)
-- **Service Layer**: `src/lib/services/pocketbase.ts` handles all database operations with typed methods
-- **Type Safety**: `src/lib/types/database.ts` defines `MovieRecord`, `CreateMovieData`, `UpdateMovieData`, `COLLECTIONS` constants
+## Database Integration (PocketBase + FSRS)
+- **Service Layer**: `src/lib/services/pocketbase.ts` handles all database operations with typed methods including FSRS flashcard scheduling
+- **Type Safety**: `src/lib/types/database.ts` defines `MovieRecord`, `FlashcardRecord`, `CreateFlashcardData`, `FSRSState`, `FSRSRating` types
 - **Movie Schema**: `{ title, mp4_path, srt_path?, srt_delay, last_position, duration?, thumbnail?, date_added, last_accessed }`
-- **File Validation**: Real-time checks via `window.electron.fileExists()` for broken file paths in HomeScreen
-- **Auto-Updates**: Last accessed time automatically tracked on play, position saved during playback
+- **Flashcard Schema**: `{ movie_id, subtitle_text, free_space (markdown), start_time, end_time, FSRS fields (due, stability, difficulty, etc.) }`
+- **FSRS Integration**: Uses `ts-fsrs` library for spaced repetition scheduling with dynamic imports to avoid CommonJS/ESM conflicts
 
-## Core Movie Features
+## Core Movie + Learning Features
 - **Library Management**: Add movies by selecting video files, auto-extract thumbnails using ffmpeg spawn processes
 - **Subtitle Support**: SRT parsing with custom delay adjustment, position controls (on-screen/below), keyboard navigation (1/2 keys)
 - **Watch Progress**: Resume functionality with automatic position saving, debounced database updates
-- **Search & Filter**: Real-time search with 300ms debounce, PocketBase filtering, recently accessed sorting
-- **Thumbnail Generation**: FFmpeg frame extraction during movie addition, base64 storage in PocketBase file system
+- **Flashcard Creation**: Extract subtitle segments into flashcards with video preview, timing adjustment, and markdown notes
+- **Spaced Repetition**: Review flashcards using FSRS algorithm with 4-button rating system (Again/Hard/Good/Easy)
+- **Translation Integration**: Bing Translator iframe widgets, text selection for translation, fullscreen translation modal
+
+## Advanced UI Patterns
+- **Golden Layout**: Multi-pane interface in MovieDetails using `golden-layout` library with video player, AI chat, subtitles/translations, and flashcards panels
+- **Two-Column Dialogs**: AddFlashcardDialog uses CSS Grid layout - left column (video preview, timing controls, subtitle), right column (markdown editor for notes)
+- **Reusable Components**: VideoPreview component with dynamic aspect ratio detection, repeat functionality, and time-bound playback
+- **Translation Flow**: Text selection → TranslateButton → TranslationModal with language swapping and Bing iframe integration
+- **Glassmorphism Theme**: Consistent backdrop-blur, gradients, and sharp edges (no border-radius) throughout UI
 
 ## Developer Workflows
 - **Start Backend**: `./pocketbase/pocketbase serve` (starts database on :8090, must run first)
@@ -35,31 +43,36 @@
 
 ## UI State Management Patterns  
 - **Screen Navigation**: Simple state switch between `'home'` and `'video'` screens in App.tsx
-- **Component Communication**: Parent-child props for movie selection (`onPlayMovie`), no global state management
-- **Persistent State**: Video progress auto-saved to PocketBase with debounced updates, subtitle settings in component state
-- **Loading States**: Consistent loading/error/empty states with spinner, retry buttons, file validation indicators
+- **Component Communication**: Parent-child props for movie selection (`onPlayMovie`), dialog state management with loading/error patterns
+- **Persistent State**: Video progress auto-saved to PocketBase, flashcard review history tracked with FSRS scheduling
+- **Dialog Management**: Multiple dialogs (translation, flashcard creation/viewing) with auto-pause video when opened
 
 ## Export/Import Module Patterns
-- **Default vs Named**: VideoPlayer uses default export but re-exported as named in `src/components/ui/index.ts` - pattern: `export { default as VideoPlayer }`
-- **Service Singletons**: PocketBase service exported as both named export and default: `export const pocketBaseService = new PocketBaseService(); export default pocketBaseService;`
-- **Path Aliases**: Use `@/` for absolute imports mapped via webpack config, e.g., `@/components/ui`, `@/lib/services/pocketbase`
+- **UI Components**: Centralized exports in `src/components/ui/index.ts` with mixed default/named patterns
+- **Service Singletons**: PocketBase service exported as both named export and default with dynamic FSRS imports
+- **Path Aliases**: Use `@/` for absolute imports mapped via webpack config
+- **Dynamic Imports**: FSRS library imported dynamically to avoid CommonJS/ESM conflicts: `await import('ts-fsrs')`
 
 ## Key Integration Points
-- **PocketBase Service**: Singleton instance with dynamic import pattern `await import('pocketbase')` for code splitting
-- **Movie Lifecycle**: Add → Validate → Extract Thumbnails → Store → Play → Track Progress
-- **File System Bridge**: Electron IPC validates file existence, reads subtitles, extracts frames via ffmpeg spawning
-- **Video Player State**: Custom HTML5 video controls with keyboard shortcuts (space=play, 1/2=subtitle nav, arrows=seek)
+- **FSRS Scheduling**: Flashcards use spaced repetition algorithm with review ratings mapped to scheduling parameters
+- **Golden Layout**: React components rendered in layout panels via `componentId` registration and DOM manipulation
+- **Video Synchronization**: VideoPreview component maintains time state, supports aspect ratio detection and repeat functionality
+- **Translation Workflow**: Text selection → floating button → modal with Bing iframe, language detection and swapping
+- **Markdown Editing**: Custom MarkdownEditor with edit/preview tabs for flashcard notes, integrated in two-column layouts
 
 ## File Structure Specifics
-- `src/lib/services/pocketbase.ts` — Database service layer with CRUD operations and file validation utilities
-- `src/lib/types/database.ts` — TypeScript definitions with BaseRecord interface and COLLECTIONS constants
-- `src/renderer/pages/home/HomeScreen.tsx` — Movie library grid with search, add functionality, file validation
-- `src/components/movie/AddMovieDialog.tsx` — Multi-step movie addition with thumbnail selection
-- `src/renderer/pages/movie-details/MovieDetails.tsx` — Simple wrapper that renders VideoPlayer
-- `pocketbase/` — Self-contained database with pb_data/, pb_migrations/, binary
+- `src/lib/services/pocketbase.ts` — Database service with FSRS integration and typed CRUD operations
+- `src/lib/types/database.ts` — TypeScript definitions including FSRS types and collection constants
+- `src/components/flashcard/` — AddFlashcardDialog (two-column layout), ViewFlashcardsDialog (table with review buttons)
+- `src/components/ui/VideoPreview.tsx` — Reusable video component with dynamic aspect ratio and repeat functionality
+- `src/components/ui/MarkdownEditor.tsx` — Fallback markdown editor with edit/preview tabs
+- `src/components/layout/GoldenLayoutWrapper.tsx` — React integration for golden-layout with component registration
+- `pocketbase/pb_migrations/` — Database schema migrations including FSRS field additions
 
 ## Critical Dependencies & Constraints
-- **PocketBase**: Must be running on :8090 before starting frontend, handles all data persistence
+- **PocketBase**: Must be running on :8090 before starting frontend, handles all data persistence including flashcard scheduling
 - **FFmpeg**: System dependency required for thumbnail extraction via spawn processes in main.ts
-- **File System Access**: Relies on Electron's native file dialogs and fs module for video/subtitle loading
-- **React 19**: Uses new createRoot API, no router (just conditional rendering), minimal state management
+- **FSRS Library**: `ts-fsrs` for spaced repetition scheduling, imported dynamically to avoid module conflicts
+- **Golden Layout**: Multi-pane interface library requiring careful React component integration and lifecycle management
+- **Translation APIs**: Relies on Bing Translator iframe integration with language detection and URL encoding
+- **React 19**: Uses new createRoot API, no router (just conditional rendering), minimal global state management

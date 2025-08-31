@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Button } from '../ui/Button';
+import { Button, MarkdownEditor, VideoPreview } from '../ui';
 import { CreateFlashcardData } from '../../lib/types/database';
 import './AddFlashcardDialog.css';
 
@@ -26,7 +26,6 @@ export const AddFlashcardDialog: React.FC<AddFlashcardDialogProps> = ({
   moviePath,
   onJumpToTime,
 }) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
   const [loading, setLoading] = useState(false);
   const [editedSubtitleText, setEditedSubtitleText] = useState(subtitleText);
   const [freeSpace, setFreeSpace] = useState('');
@@ -45,63 +44,21 @@ export const AddFlashcardDialog: React.FC<AddFlashcardDialogProps> = ({
     setCurrentTime(startTime);
   }, [startTime, endTime]);
 
-  // Video control functions
-  const playPreview = useCallback(() => {
-    if (videoRef.current) {
-      videoRef.current.currentTime = adjustedStartTime;
-      videoRef.current.play();
-      setIsPlaying(true);
-    }
-  }, [adjustedStartTime]);
-
-  const pausePreview = useCallback(() => {
-    if (videoRef.current) {
-      videoRef.current.pause();
-      setIsPlaying(false);
-    }
+  // Video control handlers for the VideoPreview component
+  const handleTimeUpdate = useCallback((time: number) => {
+    setCurrentTime(time);
   }, []);
 
-  const handleTimeUpdate = useCallback(() => {
-    if (videoRef.current) {
-      const time = videoRef.current.currentTime;
-      setCurrentTime(time);
-      
-      // Auto-pause when reaching end time
-      if (time >= adjustedEndTime) {
-        pausePreview();
-        videoRef.current.currentTime = adjustedEndTime;
-      }
-    }
-  }, [adjustedEndTime, pausePreview]);
+  const handlePlayStateChange = useCallback((playing: boolean) => {
+    setIsPlaying(playing);
+  }, []);
 
-  // Time adjustment functions
-  const adjustStartTime = useCallback((delta: number) => {
-    const newTime = Math.max(0, adjustedStartTime + delta);
-    if (newTime < adjustedEndTime) {
-      setAdjustedStartTime(newTime);
-      if (videoRef.current) {
-        videoRef.current.currentTime = newTime;
-      }
-    }
-  }, [adjustedStartTime, adjustedEndTime]);
-
-  const adjustEndTime = useCallback((delta: number) => {
-    const newTime = Math.max(adjustedStartTime + 0.5, adjustedEndTime + delta);
-    setAdjustedEndTime(newTime);
-  }, [adjustedStartTime, adjustedEndTime]);
-
-  const jumpToStart = useCallback(() => {
-    if (videoRef.current) {
-      videoRef.current.currentTime = adjustedStartTime;
-      setCurrentTime(adjustedStartTime);
-    }
+  const handleJumpToStart = useCallback(() => {
+    setCurrentTime(adjustedStartTime);
   }, [adjustedStartTime]);
 
-  const jumpToEnd = useCallback(() => {
-    if (videoRef.current) {
-      videoRef.current.currentTime = adjustedEndTime;
-      setCurrentTime(adjustedEndTime);
-    }
+  const handleJumpToEnd = useCallback(() => {
+    setCurrentTime(adjustedEndTime);
   }, [adjustedEndTime]);
 
   const formatTime = useCallback((seconds: number) => {
@@ -109,6 +66,20 @@ export const AddFlashcardDialog: React.FC<AddFlashcardDialogProps> = ({
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toFixed(1).padStart(4, '0')}`;
   }, []);
+
+  // Time adjustment functions
+  const adjustStartTime = useCallback((delta: number) => {
+    const newTime = Math.max(0, adjustedStartTime + delta);
+    if (newTime < adjustedEndTime) {
+      setAdjustedStartTime(newTime);
+      setCurrentTime(newTime);
+    }
+  }, [adjustedStartTime, adjustedEndTime]);
+
+  const adjustEndTime = useCallback((delta: number) => {
+    const newTime = Math.max(adjustedStartTime + 0.5, adjustedEndTime + delta);
+    setAdjustedEndTime(newTime);
+  }, [adjustedStartTime, adjustedEndTime]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,7 +107,7 @@ export const AddFlashcardDialog: React.FC<AddFlashcardDialogProps> = ({
       setAdjustedStartTime(startTime);
       setAdjustedEndTime(endTime);
       setCurrentTime(startTime);
-      pausePreview();
+      setIsPlaying(false);
       onClose();
     } catch (err) {
       console.error('Error adding flashcard:', err);
@@ -155,7 +126,7 @@ export const AddFlashcardDialog: React.FC<AddFlashcardDialogProps> = ({
       setAdjustedStartTime(startTime);
       setAdjustedEndTime(endTime);
       setCurrentTime(startTime);
-      pausePreview();
+      setIsPlaying(false);
       onClose();
     }
   };
@@ -178,61 +149,26 @@ export const AddFlashcardDialog: React.FC<AddFlashcardDialogProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="dialog-content">
-          {/* Video Preview Section */}
-          <div className="video-preview-section">
-            <div className="section-header">
-              <h3>📽️ Video Preview</h3>
-              <div className="preview-time-display">
-                {formatTime(currentTime)} / {formatTime(adjustedEndTime)}
-              </div>
-            </div>
-            <div className="video-container">
-              <video
-                ref={videoRef}
-                src={`file://${moviePath}`}
+          <div className="dialog-layout">
+            {/* Left Column */}
+            <div className="left-column">
+              {/* Video Preview Section */}
+              <VideoPreview
+                moviePath={moviePath}
+                startTime={adjustedStartTime}
+                endTime={adjustedEndTime}
+                currentTime={currentTime}
+                isPlaying={isPlaying}
                 onTimeUpdate={handleTimeUpdate}
-                onEnded={() => setIsPlaying(false)}
-                className="preview-video"
+                onPlayStateChange={handlePlayStateChange}
+                onJumpToStart={handleJumpToStart}
+                onJumpToEnd={handleJumpToEnd}
+                disabled={loading}
+                className="video-preview-section"
               />
-              <div className="video-controls">
-                <div className="playback-controls">
-                  <Button
-                    type="button"
-                    onClick={jumpToStart}
-                    variant="secondary"
-                    size="small"
-                    disabled={loading}
-                  >
-                    <span className="button-icon">⏮</span> Start
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={isPlaying ? pausePreview : playPreview}
-                    variant="primary"
-                    size="small"
-                    disabled={loading}
-                  >
-                    <span className="button-icon">{isPlaying ? '⏸' : '▶'}</span> {isPlaying ? 'Pause' : 'Play'}
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={jumpToEnd}
-                    variant="secondary"
-                    size="small"
-                    disabled={loading}
-                  >
-                    <span className="button-icon">⏭</span> End
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
 
           {/* Time Adjustment Section */}
           <div className="time-adjustment-section">
-            <div className="section-header">
-              <h3>⏰ Timing Adjustment</h3>
-            </div>
             <div className="time-controls">
               <div className="time-control-row">
                 <div className="time-control-group">
@@ -335,14 +271,28 @@ export const AddFlashcardDialog: React.FC<AddFlashcardDialogProps> = ({
             </div>
           </div>
 
+          
+        </div>
+
+        {/* Right Column */}
+        <div className="right-column">
           <div className="form-section">
             <div className="form-group">
-              <label htmlFor="subtitle-text">
-                <span className="label-icon">💬</span>
-                Subtitle Text
-              </label>
+              <MarkdownEditor
+                value={freeSpace}
+                onChange={setFreeSpace}
+                placeholder="Add your translation, notes, grammar explanations, or any other helpful information using **Markdown** formatting..."
+                disabled={loading}
+                height={450}
+              />
+            </div>
+          </div>
+
+          <div className="form-section">
+            <div className="form-group">
               <textarea
                 id="subtitle-text"
+                style={{ fontFamily: "'SF Mono', 'Monaco', 'Cascadia Code', monospace", fontSize: '16px', }} 
                 value={editedSubtitleText}
                 onChange={(e) => setEditedSubtitleText(e.target.value)}
                 rows={3}
@@ -351,25 +301,9 @@ export const AddFlashcardDialog: React.FC<AddFlashcardDialogProps> = ({
                 required
               />
             </div>
-
-            <div className="form-group">
-              <label htmlFor="free-space">
-                <span className="label-icon">📝</span>
-                Notes & Translation
-              </label>
-              <textarea
-                id="free-space"
-                value={freeSpace}
-                onChange={(e) => setFreeSpace(e.target.value)}
-                rows={5}
-                placeholder="Add your translation, notes, grammar explanations, or any other helpful information..."
-                disabled={loading}
-              />
-              <small className="form-hint">
-                💡 This will be upgraded to a rich text editor (TinyMCE) in a future update
-              </small>
-            </div>
           </div>
+        </div>
+      </div>
 
           {error && (
             <div className="error-message">

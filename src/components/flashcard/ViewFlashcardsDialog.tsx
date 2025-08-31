@@ -3,6 +3,14 @@ import { Button } from '../ui/Button';
 import { FlashcardRecord } from '../../lib/types/database';
 import './ViewFlashcardsDialog.css';
 
+// Simple utility to strip markdown syntax for preview
+const stripMarkdown = (markdown: string): string => {
+  return markdown
+    .replace(/[#*`_~\[\]()]/g, '') // Remove markdown symbols
+    .replace(/\n+/g, ' ') // Replace newlines with spaces
+    .trim();
+};
+
 interface ViewFlashcardsDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -208,8 +216,8 @@ export const ViewFlashcardsDialog: React.FC<ViewFlashcardsDialogProps> = ({
                         </div>
                         {card.free_space && (
                           <div className="free-space-preview">
-                            {card.free_space.substring(0, 100)}
-                            {card.free_space.length > 100 ? '...' : ''}
+                            {stripMarkdown(card.free_space).substring(0, 100)}
+                            {stripMarkdown(card.free_space).length > 100 ? '...' : ''}
                           </div>
                         )}
                       </td>

@@ -27,6 +27,11 @@ const electronHandler = {
   readSubtitleFile: (filePath: string) => ipcRenderer.invoke('read-subtitle-file', filePath),
   fileExists: (filePath: string) => ipcRenderer.invoke('file-exists', filePath),
   extractVideoFrames: (videoPath: string, count?: number) => ipcRenderer.invoke('extract-video-frames', videoPath, count),
+  // Ollama methods
+  ollamaIsAvailable: () => ipcRenderer.invoke('ollama-is-available'),
+  ollamaListModels: () => ipcRenderer.invoke('ollama-list-models'),
+  ollamaChat: (model: string, messages: any[]) => ipcRenderer.invoke('ollama-chat', model, messages),
+  ollamaTranslate: (text: string, model?: string) => ipcRenderer.invoke('ollama-translate', text, model),
 };
 
 contextBridge.exposeInMainWorld('electron', electronHandler);

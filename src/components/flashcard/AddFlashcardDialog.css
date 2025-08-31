@@ -15,10 +15,9 @@
 
 .add-flashcard-dialog {
   background: linear-gradient(145deg, #2a2a2a, #1f1f1f);
-  border-radius: 16px;
   width: 100%;
-  max-width: 700px;
-  max-height: 90vh;
+  max-width: 1320px;
+  max-height: 95vh;
   overflow-y: auto;
   box-shadow: 
     0 25px 50px rgba(0, 0, 0, 0.6),
@@ -30,7 +29,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 24px 28px 20px;
+  padding: 20px 24px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
 }
@@ -55,7 +54,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
   transition: all 0.2s ease;
   backdrop-filter: blur(10px);
 }
@@ -72,7 +70,21 @@
 }
 
 .dialog-content {
-  padding: 28px;
+  padding: 20px;
+}
+
+/* Two-column layout */
+.dialog-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  height: 100%;
+}
+
+.left-column,
+.right-column {
+  display: flex;
+  flex-direction: column;
 }
 
 /* Section Headers */
@@ -80,7 +92,6 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
 }
 
 .section-header h3 {
@@ -90,7 +101,6 @@
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 8px;
 }
 
 .preview-time-display {
@@ -100,50 +110,12 @@
   font-weight: 600;
   background: rgba(0, 122, 204, 0.1);
   padding: 6px 12px;
-  border-radius: 8px;
   border: 1px solid rgba(0, 122, 204, 0.3);
 }
 
-/* Video Preview Section */
+/* Video Preview Section - using VideoPreview component */
 .video-preview-section {
   margin-bottom: 32px;
-}
-
-.video-container {
-  background: linear-gradient(145deg, #000, #111);
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-}
-
-.preview-video {
-  width: 100%;
-  height: 240px;
-  object-fit: contain;
-  background-color: #000;
-}
-
-.video-controls {
-  background: linear-gradient(135deg, rgba(26, 26, 26, 0.95), rgba(20, 20, 20, 0.95));
-  padding: 16px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-}
-
-.playback-controls {
-  display: flex;
-  gap: 12px;
-}
-
-.button-icon {
-  display: inline-block;
-  font-size: 14px;
-  margin-right: 6px;
-  color: currentColor;
 }
 
 /* Time Adjustment Section */
@@ -154,7 +126,6 @@
 .time-controls {
   background: linear-gradient(145deg, rgba(26, 26, 26, 0.8), rgba(20, 20, 20, 0.8));
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
   padding: 20px;
   backdrop-filter: blur(10px);
 }
@@ -191,7 +162,6 @@
   font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
   background: rgba(0, 122, 204, 0.1);
   padding: 4px 8px;
-  border-radius: 6px;
   font-size: 13px;
   border: 1px solid rgba(0, 122, 204, 0.3);
 }
@@ -206,7 +176,6 @@
   text-align: center;
   padding: 16px;
   background: linear-gradient(135deg, rgba(0, 122, 204, 0.1), rgba(0, 100, 170, 0.1));
-  border-radius: 10px;
   color: #f0f0f0;
   font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
   font-weight: 600;
@@ -224,10 +193,6 @@
   font-size: 16px;
 }
 
-/* Form Section */
-.form-section {
-  margin-bottom: 24px;
-}
 
 .form-group {
   margin-bottom: 24px;
@@ -251,7 +216,6 @@
   width: 100%;
   background: linear-gradient(145deg, rgba(26, 26, 26, 0.8), rgba(20, 20, 20, 0.8));
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
   padding: 16px;
   color: #f0f0f0;
   font-family: inherit;
@@ -289,14 +253,12 @@
   font-style: italic;
   padding: 8px 12px;
   background: rgba(255, 255, 255, 0.05);
-  border-radius: 6px;
   border-left: 3px solid rgba(0, 122, 204, 0.5);
 }
 
 .error-message {
   background: linear-gradient(135deg, rgba(211, 47, 47, 0.1), rgba(183, 28, 28, 0.1));
   border: 1px solid rgba(211, 47, 47, 0.3);
-  border-radius: 10px;
   padding: 16px;
   color: #f44336;
   font-size: 14px;
@@ -315,6 +277,17 @@
 }
 
 /* Responsive design */
+@media (max-width: 1024px) {
+  .dialog-layout {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .add-flashcard-dialog {
+    max-width: 800px;
+  }
+}
+
 @media (max-width: 768px) {
   .add-flashcard-dialog-overlay {
     padding: 12px;
@@ -322,7 +295,6 @@
   
   .add-flashcard-dialog {
     max-height: 95vh;
-    border-radius: 12px;
   }
   
   .dialog-header,
@@ -369,10 +341,5 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 8px;
-  }
-  
-  .playback-controls {
-    flex-wrap: wrap;
-    justify-content: center;
   }
 }

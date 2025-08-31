@@ -1,0 +1,94 @@
+.video-preview-component {
+  width: 100%;
+}
+
+.video-preview-component .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.video-preview-component .section-header h3 {
+  margin: 0;
+  color: #f0f0f0;
+  font-size: 18px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.video-preview-component .preview-time-display {
+  color: #007acc;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+  font-size: 14px;
+  font-weight: 600;
+  background: rgba(0, 122, 204, 0.1);
+  padding: 6px 12px;
+  border: 1px solid rgba(0, 122, 204, 0.3);
+}
+
+.video-preview-component .video-container {
+  background: linear-gradient(145deg, #000, #111);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.video-preview-component .preview-video {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  min-height: 200px;
+  max-height: 400px;
+  /* Fallback aspect ratio if video metadata not loaded yet */
+  aspect-ratio: 16/9;
+}
+
+.video-preview-component .video-controls {
+  background: linear-gradient(135deg, rgba(26, 26, 26, 0.95), rgba(20, 20, 20, 0.95));
+  padding: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  margin-top: -10px;
+}
+
+.video-preview-component .playback-controls {
+  display: flex;
+  gap: 12px;
+}
+
+.video-preview-component .button-icon {
+  display: inline-block;
+  font-size: 14px;
+  margin-right: 6px;
+  color: currentColor;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .video-preview-component .preview-video {
+    min-height: 150px;
+    max-height: 250px;
+  }
+  
+  .video-preview-component .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .video-preview-component .preview-time-display {
+    align-self: stretch;
+    text-align: center;
+  }
+  
+  .video-preview-component .playback-controls {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
