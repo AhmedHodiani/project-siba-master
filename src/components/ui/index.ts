@@ -13,3 +13,4 @@ export { AiChatPanel } from '../ai/AiChatPanel';
 // Flashcard components
 export { AddFlashcardDialog } from '../flashcard/AddFlashcardDialog';
 export { ViewFlashcardsDialog } from '../flashcard/ViewFlashcardsDialog';
+export { StudySessionDialog } from '../flashcard/StudySessionDialog';

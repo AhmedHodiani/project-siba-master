@@ -1,0 +1,276 @@
+/* Study Session Dialog Styles */
+.study-session-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.study-session-dialog {
+  background: linear-gradient(145deg, rgba(26, 26, 26, 0.95), rgba(20, 20, 20, 0.95));
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.study-session-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, rgba(40, 40, 40, 0.8), rgba(30, 30, 30, 0.8));
+}
+
+.study-session-dialog-header h2 {
+  margin: 0;
+  color: #f0f0f0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.close-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e0e0e0;
+}
+
+.study-session-dialog-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.section {
+  margin-bottom: 32px;
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+.section h3 {
+  margin: 0 0 16px 0;
+  color: #e0e0e0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* Card Groups */
+.card-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card-group {
+  padding: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(20, 20, 20, 0.6);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.card-group:hover {
+  background: rgba(30, 30, 30, 0.8);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.card-group.selected {
+  background: rgba(0, 122, 204, 0.2);
+  border-color: #007acc;
+  box-shadow: 0 0 0 1px rgba(0, 122, 204, 0.3);
+}
+
+.card-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.card-group-name {
+  color: #f0f0f0;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.card-group-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.card-group-description {
+  color: #888;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* Card Count Section */
+.card-count-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card-count-input {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.card-count-input input {
+  background: rgba(20, 20, 20, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: #f0f0f0;
+  font-size: 16px;
+  width: 80px;
+  text-align: center;
+}
+
+.card-count-input input:focus {
+  outline: none;
+  border-color: #007acc;
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
+.card-count-max {
+  color: #888;
+  font-size: 14px;
+}
+
+.quick-counts {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.quick-count {
+  background: rgba(40, 40, 40, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #e0e0e0;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.quick-count:hover {
+  background: rgba(60, 60, 60, 0.8);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.quick-count.active {
+  background: rgba(0, 122, 204, 0.3);
+  border-color: #007acc;
+  color: #007acc;
+}
+
+/* Session Preview */
+.session-preview {
+  background: rgba(0, 122, 204, 0.1);
+  border: 1px solid rgba(0, 122, 204, 0.3);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.preview-card {
+  background: rgba(20, 20, 20, 0.6);
+  border-radius: 6px;
+  padding: 16px;
+}
+
+.preview-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.preview-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.preview-label {
+  color: #888;
+  font-size: 14px;
+}
+
+.preview-line span:last-child {
+  color: #e0e0e0;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+/* Dialog Footer */
+.study-session-dialog-footer {
+  padding: 20px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, rgba(40, 40, 40, 0.8), rgba(30, 30, 30, 0.8));
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .study-session-dialog {
+    margin: 10px;
+    max-width: none;
+    width: calc(100% - 20px);
+  }
+  
+  .study-session-dialog-header,
+  .study-session-dialog-content,
+  .study-session-dialog-footer {
+    padding: 16px;
+  }
+  
+  .quick-counts {
+    justify-content: center;
+  }
+  
+  .preview-line {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}

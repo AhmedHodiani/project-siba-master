@@ -21,7 +21,7 @@ export const VideoPreview: React.FC<VideoPreviewProps> = ({
   startTime,
   endTime,
   currentTime,
-  isPlaying,
+  isPlaying = true,
   onTimeUpdate,
   onPlayStateChange,
   onJumpToStart,
@@ -30,7 +30,7 @@ export const VideoPreview: React.FC<VideoPreviewProps> = ({
   className = '',
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isRepeating, setIsRepeating] = useState(false);
+  const [isRepeating, setIsRepeating] = useState(true);
   const [videoAspectRatio, setVideoAspectRatio] = useState<number | null>(null);
 
   const formatTime = useCallback((seconds: number) => {
@@ -107,6 +107,13 @@ export const VideoPreview: React.FC<VideoPreviewProps> = ({
       videoRef.current.currentTime = currentTime;
     }
   }, [currentTime]);
+
+  // set video to playing when the component mounts if isPlaying is true
+  useEffect(() => {
+    if (isPlaying) {
+      playPreview();
+    }
+  }, []);
 
   return (
     <div className={`video-preview-component ${className}`}>

@@ -8,6 +8,7 @@ interface MarkdownEditorProps {
   placeholder?: string;
   disabled?: boolean;
   height?: number;
+  fullHeight?: boolean;
   preview?: 'edit' | 'preview' | 'live';
 }
 
@@ -17,12 +18,15 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   placeholder = "Start typing with **Markdown** support...",
   disabled = false,
   height = 200,
+  fullHeight = false,
   preview = 'edit',
 }) => {
-  const [showPreview, setShowPreview] = useState(false);
+  const [showPreview, setShowPreview] = useState(preview === 'preview');
+
+  const contentHeight = fullHeight ? '100%' : height;
 
   return (
-    <div className={`markdown-editor-wrapper ${disabled ? 'disabled' : ''}`}>
+    <div className={`markdown-editor-wrapper ${disabled ? 'disabled' : ''}`} style={fullHeight ? { height: '100%', display: 'flex', flexDirection: 'column' } : {}}>
       {/* Tabs */}
       <div className="markdown-tabs">
         <button
@@ -44,7 +48,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       </div>
 
       {/* Content */}
-      <div className="markdown-content" style={{ height }}>
+      <div className="markdown-content" style={fullHeight ? { flex: 1, height: 'auto' } : { height: contentHeight }}>
         {!showPreview ? (
           <textarea
             value={value}
