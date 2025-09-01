@@ -34,6 +34,19 @@ export const MovieDetails: React.FC = () => {
   const [movie, setMovie] = useState<MovieRecord | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Helper function to format time in hh:mm:ss
+  const formatTime = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    
+    if (hours > 0) {
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    } else {
+      return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+  };
+
   // Subtitle state
   const [subtitles, setSubtitles] = useState<SubtitleCue[]>([]);
   const [currentSubtitle, setCurrentSubtitle] = useState<SubtitleCue | null>(
@@ -729,14 +742,14 @@ export const MovieDetails: React.FC = () => {
         <div style={{ display: 'flex', gap: '8px' }}>
           <Button 
             onClick={() => setStudyMode('movie')} 
-            variant={studyMode === 'movie' ? 'primary' : 'secondary'} 
+            variant={studyMode === 'movie' ? 'danger' : 'secondary'} 
             size="small"
           >
             Movie Study
           </Button>
           <Button 
             onClick={() => setStudyMode('flashcard')} 
-            variant={studyMode === 'flashcard' ? 'primary' : 'secondary'} 
+            variant={studyMode === 'flashcard' ? 'danger' : 'secondary'} 
             size="small"
           >
             Flashcard Study
@@ -974,6 +987,61 @@ export const MovieDetails: React.FC = () => {
                           onJumpToStart={handlePreviewJumpToStart}
                           onJumpToEnd={handlePreviewJumpToEnd}
                         />
+                        
+                        {/* Card Metadata */}
+                        <div style={{ 
+                          marginTop: '12px', 
+                          padding: '12px', 
+                          backgroundColor: 'rgba(0,0,0,0.3)', 
+                          borderRadius: '6px',
+                          opacity: 0.5,
+                          border: '1px solid #444',
+                          fontSize: '13px',
+                          color: '#ccc'
+                        }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                            <div>
+                              <strong>State:</strong> {(() => {
+                                const rawState = studySession.cards[studySession.currentIndex].state;
+                                const state = parseInt(String(rawState), 10);
+                                const stateLabels = { 0: 'New', 1: 'Learning', 2: 'Review', 3: 'Relearning' };
+                                if (isNaN(state)) return `${rawState}`;
+                                return `${state}`;
+                              })()}
+                            </div>
+                            <div>
+                              <strong>Due:</strong> {(() => {
+                                const due = new Date(studySession.cards[studySession.currentIndex].due);
+                                const now = new Date();
+                                const diffMs = due.getTime() - now.getTime();
+                                const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                                
+                                if (diffDays < 0) return `${Math.abs(diffDays)}d overdue`;
+                                if (diffDays === 0) return 'Today';
+                                if (diffDays === 1) return 'Tomorrow';
+                                return `${diffDays}d`;
+                              })()}
+                            </div>
+                            <div>
+                              <strong>Difficulty:</strong> {Number(studySession.cards[studySession.currentIndex].difficulty).toFixed(1)}
+                            </div>
+                            <div>
+                              <strong>Stability:</strong> {Number(studySession.cards[studySession.currentIndex].stability).toFixed(1)}d
+                            </div>
+                            <div>
+                              <strong>Reps:</strong> {studySession.cards[studySession.currentIndex].reps}
+                            </div>
+                            <div>
+                              <strong>Lapses:</strong> {studySession.cards[studySession.currentIndex].lapses}
+                            </div>
+                          </div>
+                          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #555' }}>
+                            <strong>Time:</strong> {formatTime(studySession.cards[studySession.currentIndex].start_time)} - {formatTime(studySession.cards[studySession.currentIndex].end_time)}
+                            <span style={{ marginLeft: '12px' }}>
+                              <strong>Duration:</strong> {(studySession.cards[studySession.currentIndex].end_time - studySession.cards[studySession.currentIndex].start_time).toFixed(1)}s
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>

@@ -112,7 +112,59 @@ class PocketBaseService {
 
   async deleteMovie(id: string): Promise<boolean> {
     const pb = await this.getPocketBase();
-    return pb.collection(COLLECTIONS.MOVIES).delete(id);
+    
+    try {
+      console.log('Starting movie deletion process for:', id);
+      
+      // Step 1: Get all flashcards for this movie
+      const flashcards = await pb.collection(COLLECTIONS.FLASHCARDS).getFullList<FlashcardRecord>({
+        filter: `movie_id = "${id}"`,
+        fields: 'id',
+      });
+      
+      console.log(`Found ${flashcards.length} flashcards to delete`);
+      
+      // Step 2: Delete all review logs for these flashcards
+      if (flashcards.length > 0) {
+        const flashcardIds = flashcards.map(f => f.id);
+        console.log('Deleting review logs for flashcards:', flashcardIds);
+        
+        // Delete review logs in batches (PocketBase might have query length limits)
+        const batchSize = 10;
+        for (let i = 0; i < flashcardIds.length; i += batchSize) {
+          const batch = flashcardIds.slice(i, i + batchSize);
+          const orConditions = batch.map(id => `flashcard_id = "${id}"`).join(' || ');
+          
+          // Get all review logs for this batch
+          const reviewLogs = await pb.collection(COLLECTIONS.REVIEW_LOGS).getFullList<ReviewLogRecord>({
+            filter: `(${orConditions})`,
+          });
+          
+          console.log(`Deleting ${reviewLogs.length} review logs for batch ${i / batchSize + 1}`);
+          
+          // Delete each review log
+          for (const log of reviewLogs) {
+            await pb.collection(COLLECTIONS.REVIEW_LOGS).delete(log.id);
+          }
+        }
+      }
+      
+      // Step 3: Delete all flashcards for this movie
+      console.log('Deleting flashcards...');
+      for (const flashcard of flashcards) {
+        await pb.collection(COLLECTIONS.FLASHCARDS).delete(flashcard.id);
+      }
+      
+      // Step 4: Finally delete the movie
+      console.log('Deleting movie...');
+      await pb.collection(COLLECTIONS.MOVIES).delete(id);
+      
+      console.log('Movie deletion completed successfully');
+      return true;
+    } catch (error) {
+      console.error('Error during movie deletion:', error);
+      throw error; // Re-throw to let the caller handle it
+    }
   }
 
   async updateLastAccessed(id: string): Promise<MovieRecord> {
@@ -465,6 +517,151 @@ class PocketBaseService {
     };
     
     return stats;
+  }
+
+  // Get study statistics for multiple movies efficiently
+  async getMultipleMovieStats(movieIds: string[]): Promise<Record<string, {
+    totalCards: number;
+    dueCards: number;
+    reviewedToday: number;
+    newCards: number;
+    learningCards: number;
+    reviewCards: number;
+    relearningCards: number;
+  }>> {
+    if (movieIds.length === 0) return {};
+    
+    const pb = await this.getPocketBase();
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    const now = new Date().toISOString();
+    
+    // Get all flashcards for these movies in one query
+    const movieFilter = movieIds.map(id => `movie_id = "${id}"`).join(' || ');
+    const allCards = await pb.collection(COLLECTIONS.FLASHCARDS).getFullList<FlashcardRecord>({
+      filter: movieFilter,
+    });
+    
+    // Get today's reviews for all movies
+    const todayReviews = await pb.collection(COLLECTIONS.REVIEW_LOGS).getFullList<ReviewLogRecord>({
+      filter: `review_time >= "${today}T00:00:00.000Z"`,
+    });
+    
+    // Group cards by movie
+    const cardsByMovie: Record<string, FlashcardRecord[]> = {};
+    movieIds.forEach(id => {
+      cardsByMovie[id] = [];
+    });
+    
+    allCards.forEach(card => {
+      if (cardsByMovie[card.movie_id]) {
+        cardsByMovie[card.movie_id].push(card);
+      }
+    });
+    
+    // Get unique cards reviewed today by movie
+    const reviewedTodayByMovie: Record<string, Set<string>> = {};
+    movieIds.forEach(id => {
+      reviewedTodayByMovie[id] = new Set();
+    });
+    
+    todayReviews.forEach(review => {
+      // Find which movie this flashcard belongs to
+      const card = allCards.find(c => c.id === review.flashcard_id);
+      if (card && reviewedTodayByMovie[card.movie_id]) {
+        reviewedTodayByMovie[card.movie_id].add(review.flashcard_id);
+      }
+    });
+    
+    // Calculate stats for each movie
+    const results: Record<string, any> = {};
+    
+    movieIds.forEach(movieId => {
+      const movieCards = cardsByMovie[movieId] || [];
+      const reviewedToday = reviewedTodayByMovie[movieId]?.size || 0;
+      
+      results[movieId] = {
+        totalCards: movieCards.length,
+        dueCards: movieCards.filter(card => new Date(card.due) <= new Date(now)).length,
+        reviewedToday,
+        newCards: movieCards.filter(card => card.state === 'New').length,
+        learningCards: movieCards.filter(card => card.state === 'Learning').length,
+        reviewCards: movieCards.filter(card => card.state === 'Review').length,
+        relearningCards: movieCards.filter(card => card.state === 'Relearning').length,
+      };
+    });
+    
+    return results;
+  }
+
+  // Get deletion statistics for a movie
+  async getMovieDeletionStats(movieId: string): Promise<{
+    flashcardCount: number;
+    reviewLogCount: number;
+    flashcardsWithNotes: number;
+  }> {
+    const pb = await this.getPocketBase();
+    
+    try {
+      console.log('Getting deletion stats for movie:', movieId);
+      
+      // Get flashcard count
+      const flashcardsResult = await pb.collection(COLLECTIONS.FLASHCARDS).getList(1, 1, {
+        filter: `movie_id = "${movieId}"`,
+      });
+      const flashcardCount = flashcardsResult.totalItems;
+      console.log('Flashcard count:', flashcardCount);
+      
+      // Get flashcards with notes count - using a more robust filter
+      let flashcardsWithNotes = 0;
+      if (flashcardCount > 0) {
+        const flashcardsWithNotesResult = await pb.collection(COLLECTIONS.FLASHCARDS).getList(1, 1, {
+          filter: `movie_id = "${movieId}" && free_space != "" && free_space != null`,
+        });
+        flashcardsWithNotes = flashcardsWithNotesResult.totalItems;
+        console.log('Flashcards with notes:', flashcardsWithNotes);
+      }
+      
+      // Get review log count for all flashcards of this movie
+      let reviewLogCount = 0;
+      if (flashcardCount > 0) {
+        // Get all flashcard IDs for this movie
+        const allFlashcards = await pb.collection(COLLECTIONS.FLASHCARDS).getFullList<FlashcardRecord>({
+          filter: `movie_id = "${movieId}"`,
+          fields: 'id',
+        });
+        console.log('All flashcards found:', allFlashcards.length);
+        
+        if (allFlashcards.length > 0) {
+          // Try a different approach for the IN query
+          const flashcardIds = allFlashcards.map(f => f.id);
+          console.log('Flashcard IDs:', flashcardIds);
+          
+          // Use OR conditions instead of IN operator
+          const orConditions = flashcardIds.map(id => `flashcard_id = "${id}"`).join(' || ');
+          const reviewLogsResult = await pb.collection(COLLECTIONS.REVIEW_LOGS).getList(1, 1, {
+            filter: `(${orConditions})`,
+          });
+          reviewLogCount = reviewLogsResult.totalItems;
+          console.log('Review log count:', reviewLogCount);
+        }
+      }
+      
+      const result = {
+        flashcardCount,
+        reviewLogCount,
+        flashcardsWithNotes,
+      };
+      console.log('Final deletion stats:', result);
+      return result;
+    } catch (error) {
+      console.error('Error getting deletion stats:', error);
+      // Return zero stats on error
+      return {
+        flashcardCount: 0,
+        reviewLogCount: 0,
+        flashcardsWithNotes: 0,
+      };
+    }
   }
 }
 

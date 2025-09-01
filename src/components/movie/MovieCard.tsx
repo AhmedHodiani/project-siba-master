@@ -4,6 +4,16 @@ import { Button } from '../ui/Button';
 import pocketBaseService from '@/lib/services/pocketbase';
 import './MovieCard.css';
 
+export interface StudyStats {
+  totalCards: number;
+  dueCards: number;
+  reviewedToday: number;
+  newCards: number;
+  learningCards: number;
+  reviewCards: number;
+  relearningCards: number;
+}
+
 interface MovieCardProps {
   movie: MovieRecord;
   onPlay: (movie: MovieRecord) => void;
@@ -14,6 +24,8 @@ interface MovieCardProps {
     mp4Exists: boolean;
     srtExists: boolean;
   };
+  studyStats?: StudyStats | null;
+  loading?: boolean;
 }
 
 export function MovieCard({ 
@@ -21,7 +33,9 @@ export function MovieCard({
   onPlay, 
   onEdit, 
   onDelete, 
-  fileValidation 
+  fileValidation,
+  studyStats,
+  loading = false
 }: MovieCardProps) {
   const formatDuration = (seconds?: number) => {
     if (!seconds) return 'Unknown';
@@ -45,6 +59,26 @@ export function MovieCard({
 
   const hasFileIssues = fileValidation && (!fileValidation.mp4Exists || !fileValidation.srtExists);
 
+  const getStudyProgress = () => {
+    if (!studyStats || studyStats.totalCards === 0) return 0;
+    const reviewedCards = studyStats.totalCards - studyStats.newCards;
+    return Math.round((reviewedCards / studyStats.totalCards) * 100);
+  };
+
+  const formatRelativeTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+    if (diffDays < 365) return `${Math.floor(diffDays / 30)}mo ago`;
+    return `${Math.floor(diffDays / 365)}y ago`;
+  };
+
   return (
     <div className={`movie-card ${hasFileIssues ? 'file-error' : ''}`} onClick={() => hasFileIssues ? undefined : onPlay(movie)}>
       <div className="movie-card-header">
@@ -54,7 +88,10 @@ export function MovieCard({
         <div className="movie-card-actions">
           {onEdit && (
             <Button
-              onClick={() => onEdit(movie)}
+              onClick={(e) => {
+                e?.stopPropagation();
+                onEdit(movie);
+              }}
               variant="secondary"
               size="small"
               className="edit-btn"
@@ -64,7 +101,10 @@ export function MovieCard({
           )}
           {onDelete && (
             <Button
-              onClick={() => onDelete(movie)}
+              onClick={(e) => {
+                e?.stopPropagation();
+                onDelete(movie);
+              }}
               variant="danger"
               size="small"
               className="delete-btn"
@@ -105,6 +145,71 @@ export function MovieCard({
             </span>
           </div>
         )}
+
+        {/* Study Statistics */}
+        {loading ? (
+          <div className="study-stats loading">
+            <div className="stats-header">
+              <span className="stats-title">📚 Study Progress</span>
+              <span className="loading-text">Loading...</span>
+            </div>
+          </div>
+        ) : studyStats && studyStats.totalCards > 0 ? (
+          <div className="study-stats">
+            <div className="stats-header">
+              <span className="stats-title">📚 Study Progress</span>
+              <span className="study-progress">{getStudyProgress()}%</span>
+            </div>
+            <div className="stats-grid">
+              <div className="stat-item">
+                <span className="stat-number">{studyStats.totalCards}</span>
+                <span className="stat-label">Cards</span>
+              </div>
+              <div className="stat-item due">
+                <span className="stat-number">{studyStats.dueCards}</span>
+                <span className="stat-label">Due</span>
+              </div>
+              <div className="stat-item reviewed">
+                <span className="stat-number">{studyStats.reviewedToday}</span>
+                <span className="stat-label">Today</span>
+              </div>
+            </div>
+            <div className="stats-breakdown">
+              <div className="breakdown-item new">
+                <span className="breakdown-dot"></span>
+                <span className="breakdown-text">New: {studyStats.newCards}</span>
+              </div>
+              <div className="breakdown-item learning">
+                <span className="breakdown-dot"></span>
+                <span className="breakdown-text">Learning: {studyStats.learningCards}</span>
+              </div>
+              <div className="breakdown-item review">
+                <span className="breakdown-dot"></span>
+                <span className="breakdown-text">Review: {studyStats.reviewCards}</span>
+              </div>
+              {studyStats.relearningCards > 0 && (
+                <div className="breakdown-item relearning">
+                  <span className="breakdown-dot"></span>
+                  <span className="breakdown-text">Relearning: {studyStats.relearningCards}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="study-stats empty">
+            <div className="stats-header">
+              <span className="stats-title">📚 No flashcards yet</span>
+            </div>
+            <div className="empty-message">
+              Start creating flashcards to track your learning progress
+            </div>
+          </div>
+        )}
+
+        {/* Access time info */}
+        <div className="access-info">
+          <span className="last-accessed">Last opened: {formatRelativeTime(movie.last_accessed)}</span>
+        </div>
 
         {hasFileIssues && (
           <div className="file-status">

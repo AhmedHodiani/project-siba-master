@@ -177,8 +177,7 @@ export function AddMovieDialog({
           {step === 'select-subtitle' && (
             <div className="step-content">
               <div className="step-icon">💬</div>
-              <h3>Add Subtitles (Optional)</h3>
-              <p>Would you like to add a subtitle file for this movie?</p>
+              <h3>Add Subtitles</h3>
               <div className="step-actions">
                 <Button
                   onClick={() => handleSelectSubtitle(false)}
@@ -186,13 +185,6 @@ export function AddMovieDialog({
                   className="action-btn"
                 >
                   Choose Subtitle File
-                </Button>
-                <Button
-                  onClick={() => handleSelectSubtitle(true)}
-                  variant="secondary"
-                  className="action-btn"
-                >
-                  Skip Subtitles
                 </Button>
               </div>
             </div>

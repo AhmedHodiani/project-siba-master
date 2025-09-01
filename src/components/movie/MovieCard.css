@@ -189,6 +189,163 @@
   text-align: center;
 }
 
+/* Study Statistics */
+.study-stats {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 12px;
+  margin-top: 10px;
+}
+
+.study-stats.loading {
+  opacity: 0.6;
+}
+
+.study-stats.empty {
+  background: rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.stats-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.stats-title {
+  color: #e0e0e0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.study-progress {
+  color: #4CAF50;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.loading-text {
+  color: #888;
+  font-size: 11px;
+  font-style: italic;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.stat-item {
+  text-align: center;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stat-item.due {
+  background: rgba(255, 193, 7, 0.1);
+  border-color: rgba(255, 193, 7, 0.2);
+}
+
+.stat-item.reviewed {
+  background: rgba(76, 175, 80, 0.1);
+  border-color: rgba(76, 175, 80, 0.2);
+}
+
+.stat-number {
+  display: block;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.stat-item.due .stat-number {
+  color: #ffc107;
+}
+
+.stat-item.reviewed .stat-number {
+  color: #4CAF50;
+}
+
+.stat-label {
+  display: block;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+.stats-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.breakdown-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.breakdown-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.breakdown-item.new .breakdown-dot {
+  background: #2196F3;
+}
+
+.breakdown-item.learning .breakdown-dot {
+  background: #FF9800;
+}
+
+.breakdown-item.review .breakdown-dot {
+  background: #4CAF50;
+}
+
+.breakdown-item.relearning .breakdown-dot {
+  background: #f44336;
+}
+
+.breakdown-text {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.empty-message {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  font-style: italic;
+  text-align: center;
+  padding: 8px 0;
+}
+
+/* Access Info */
+.access-info {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.last-accessed {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 11px;
+  display: block;
+  text-align: center;
+}
+
 .file-status {
   margin-top: 15px;
   padding: 10px;
