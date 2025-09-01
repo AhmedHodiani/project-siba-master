@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
-// import MDEditor from '@uiw/react-md-editor';
-// import '@uiw/react-md-editor/markdown-editor.css';
-// import '@uiw/react-markdown-preview/markdown.css';
+import { MarkdownRenderer } from './MarkdownRenderer';
 import './MarkdownEditor.css';
 
 interface MarkdownEditorProps {
@@ -13,7 +11,6 @@ interface MarkdownEditorProps {
   preview?: 'edit' | 'preview' | 'live';
 }
 
-// Temporary fallback component while we fix the MDEditor import
 const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   value,
   onChange,
@@ -23,18 +20,6 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   preview = 'edit',
 }) => {
   const [showPreview, setShowPreview] = useState(false);
-
-  // Simple markdown to HTML converter for preview
-  const markdownToHtml = (markdown: string) => {
-    return markdown
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/`(.*?)`/g, '<code>$1</code>')
-      .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-      .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-      .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-      .replace(/\n/g, '<br>');
-  };
 
   return (
     <div className={`markdown-editor-wrapper ${disabled ? 'disabled' : ''}`}>
@@ -82,20 +67,13 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             }}
           />
         ) : (
-          <div
-            className="markdown-preview"
-            style={{
-              height: '100%',
-              padding: '16px',
-              overflow: 'auto',
-              color: '#f0f0f0',
-              fontSize: '14px',
-              lineHeight: '1.6',
-            }}
-            dangerouslySetInnerHTML={{
-              __html: markdownToHtml(value) || '<em style="color: #888;">Nothing to preview...</em>'
-            }}
-          />
+          <div className="markdown-editor-preview">
+            {value ? (
+              <MarkdownRenderer style={{ padding: '16px' }} content={value} />
+            ) : (
+              <div style={{ color: '#888', padding: '16px' }}>Nothing to preview...</div>
+            )}
+          </div>
         )}
       </div>
     </div>

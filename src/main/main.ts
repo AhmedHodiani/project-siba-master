@@ -197,6 +197,15 @@ ipcMain.handle('ollama-chat', async (_, model: string, messages: any[]) => {
   }
 });
 
+ipcMain.handle('ollama-chat-with-context', async (_, model: string, message: string, conversationHistory: any[]) => {
+  try {
+    return await ollamaMainService.chatWithContext(model, message, conversationHistory);
+  } catch (error) {
+    console.error('Error in Ollama chat with context:', error);
+    throw error;
+  }
+});
+
 ipcMain.handle('ollama-translate', async (_, text: string, model?: string) => {
   try {
     return await ollamaMainService.translateGermanToEnglish(text, model);

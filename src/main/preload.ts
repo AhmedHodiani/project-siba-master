@@ -31,6 +31,7 @@ const electronHandler = {
   ollamaIsAvailable: () => ipcRenderer.invoke('ollama-is-available'),
   ollamaListModels: () => ipcRenderer.invoke('ollama-list-models'),
   ollamaChat: (model: string, messages: any[]) => ipcRenderer.invoke('ollama-chat', model, messages),
+  ollmaChatWithContext: (model: string, message: string, conversationHistory: any[]) => ipcRenderer.invoke('ollama-chat-with-context', model, message, conversationHistory),
   ollamaTranslate: (text: string, model?: string) => ipcRenderer.invoke('ollama-translate', text, model),
 };
 

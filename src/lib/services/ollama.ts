@@ -6,6 +6,7 @@ export interface ChatMessage {
 export interface OllamaServiceInterface {
   listModels(): Promise<string[]>;
   chat(model: string, messages: ChatMessage[]): Promise<string>;
+  chatWithContext(model: string, message: string, conversationHistory: ChatMessage[]): Promise<string>;
   translateGermanToEnglish(text: string, model?: string): Promise<string>;
   isAvailable(): Promise<boolean>;
 }
@@ -34,6 +35,15 @@ class OllamaRendererService implements OllamaServiceInterface {
       return await window.electron.ollamaChat(model, messages);
     } catch (error) {
       console.error('Error in chat:', error);
+      throw new Error('Failed to generate response');
+    }
+  }
+
+  async chatWithContext(model: string, message: string, conversationHistory: ChatMessage[]): Promise<string> {
+    try {
+      return await window.electron.ollmaChatWithContext(model, message, conversationHistory);
+    } catch (error) {
+      console.error('Error in chat with context:', error);
       throw new Error('Failed to generate response');
     }
   }

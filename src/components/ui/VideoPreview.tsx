@@ -122,7 +122,7 @@ export const VideoPreview: React.FC<VideoPreviewProps> = ({
         />
         <div className="video-controls">
           <div className="playback-controls">
-            <Button
+            {/* <Button
               type="button"
               onClick={onJumpToStart}
               variant="secondary"
@@ -130,7 +130,7 @@ export const VideoPreview: React.FC<VideoPreviewProps> = ({
               disabled={disabled}
             >
               <span className="button-icon">⏮</span> Start
-            </Button>
+            </Button> */}
             <Button
               type="button"
               onClick={isPlaying ? pausePreview : playPreview}
@@ -140,7 +140,7 @@ export const VideoPreview: React.FC<VideoPreviewProps> = ({
             >
               <span className="button-icon">{isPlaying ? '⏸' : '▶'}</span> {isPlaying ? 'Pause' : 'Play'}
             </Button>
-            <Button
+            {/* <Button
               type="button"
               onClick={onJumpToEnd}
               variant="secondary"
@@ -148,7 +148,7 @@ export const VideoPreview: React.FC<VideoPreviewProps> = ({
               disabled={disabled}
             >
               <span className="button-icon">⏭</span> End
-            </Button>
+            </Button> */}
             <Button
               type="button"
               onClick={toggleRepeat}
@@ -157,7 +157,15 @@ export const VideoPreview: React.FC<VideoPreviewProps> = ({
               disabled={disabled}
               className="repeat-button"
             >
-              <span className="button-icon">🔁</span> {isRepeating ? 'On' : 'Off'}
+              <span className="button-icon">Repeat</span> <span style={{
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                borderRadius: '4px',
+                padding: '2px 6px',
+                marginLeft: '4px',
+                fontSize: '0.9em',
+              }}>
+                {isRepeating ? 'On' : 'Off'}
+              </span>
             </Button>
           </div>
         </div>

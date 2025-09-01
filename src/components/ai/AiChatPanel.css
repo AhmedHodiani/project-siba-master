@@ -7,6 +7,38 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
+.chat-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #333;
+  background: rgba(0, 122, 204, 0.05);
+  min-height: 36px;
+}
+
+.context-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  color: #e0e0e0;
+}
+
+.context-toggle input[type="checkbox"] {
+  margin: 0;
+  width: 14px;
+  height: 14px;
+}
+
+.context-info {
+  font-size: 10px;
+  color: #888;
+  font-style: italic;
+}
+
 .chat-header {
   display: flex;
   justify-content: space-between;

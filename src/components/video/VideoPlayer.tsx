@@ -418,7 +418,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
                       TRANSLATE
                     </Button>
                   )}
-                {/* <Button
+                <Button
                   onClick={(e) => {
                     e?.stopPropagation();
                     toggleFullscreen();
@@ -427,7 +427,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
                   className="control-btn fullscreen-btn"
                 >
                   {fullscreen ? 'EXIT' : 'FULL'}
-                </Button> */}
+                </Button>
               </div>
             </div>
           </div>

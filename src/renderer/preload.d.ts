@@ -7,6 +7,7 @@ declare global {
       ollamaIsAvailable: () => Promise<boolean>;
       ollamaListModels: () => Promise<string[]>;
       ollamaChat: (model: string, messages: any[]) => Promise<string>;
+      ollmaChatWithContext: (model: string, message: string, conversationHistory: any[]) => Promise<string>;
       ollamaTranslate: (text: string, model?: string) => Promise<string>;
     };
   }

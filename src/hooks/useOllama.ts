@@ -7,6 +7,7 @@ export interface UseOllamaReturn {
   isAvailable: boolean | null;
   models: string[];
   askQuestion: (question: string, systemMessage?: string, model?: string) => Promise<string>;
+  chatWithContext: (message: string, conversationHistory: ChatMessage[], model?: string) => Promise<string>;
   translateGerman: (text: string, model?: string) => Promise<string>;
   chat: (model: string, messages: ChatMessage[]) => Promise<string>;
   checkAvailability: () => Promise<boolean>;
@@ -89,6 +90,28 @@ export const useOllama = (): UseOllamaReturn => {
     }
   }, []);
 
+  const chatWithContext = useCallback(async (
+    message: string,
+    conversationHistory: ChatMessage[],
+    model?: string
+  ): Promise<string> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await ollamaService.chatWithContext(
+        model || 'llama3.2:latest',
+        message,
+        conversationHistory
+      );
+      return response;
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const chat = useCallback(async (
     model: string,
     messages: ChatMessage[]
@@ -112,6 +135,7 @@ export const useOllama = (): UseOllamaReturn => {
     isAvailable,
     models,
     askQuestion,
+    chatWithContext,
     translateGerman,
     chat,
     checkAvailability,

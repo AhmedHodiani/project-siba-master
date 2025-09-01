@@ -7,7 +7,7 @@ export interface ChatMessage {
 
 export interface OllamaServiceInterface {
   listModels(): Promise<string[]>;
-  chat(model: string, messages: ChatMessage[]): Promise<string>;
+  chatWithContext(model: string, message: string, conversationHistory: ChatMessage[]): Promise<string>;
   translateGermanToEnglish(text: string, model?: string): Promise<string>;
   isAvailable(): Promise<boolean>;
 }
@@ -43,48 +43,62 @@ class OllamaMainService implements OllamaServiceInterface {
     }
   }
 
-  async chat(model: string, messages: ChatMessage[]): Promise<string> {
+  async chatWithContext(model: string, message: string, conversationHistory: ChatMessage[]): Promise<string> {
     try {
-      // Add system message to encourage markdown formatting if not already present
-      const hasSystemMessage = messages.some(msg => msg.role === 'system');
-      if (!hasSystemMessage) {
-        const systemPrompt = `You are a specialized German-English translator for language learning. Your task is to translate German text to English with the following guidelines:
+      // Build conversation context with system message
+      const systemPrompt = `You are a helpful AI assistant that can help with various tasks including German-English translation and general conversation. 
 
-TRANSLATION APPROACH:
+GENERAL GUIDELINES:
+- Maintain context from previous messages in the conversation
+- Reference earlier parts of the conversation when relevant
+- If asked for "more examples" or "explain further", refer to what was previously discussed
+- Be conversational and remember what the user has asked about
+
+WHEN TRANSLATING GERMAN:
 - Provide natural, fluent English translations
 - Maintain the original meaning and tone
 - Use contemporary, conversational English
 - Preserve any cultural context or idioms with explanations when needed
-
-RESPONSE FORMAT:
-- Primary translation on the first line
-- Brief grammar explanation if the German structure is notable
-- Alternative translations if multiple interpretations exist
-- Cultural context if relevant
-
-LANGUAGE LEARNING FOCUS:
 - Highlight interesting grammatical structures
 - Note any false friends or tricky vocabulary
 - Explain compound words when present
 - Point out modal verbs, separable verbs, or complex grammar
 
-Keep responses concise but educational. Focus on helping the learner understand both the translation and the underlying German language patterns.
+FORMAT YOUR RESPONSES FOR BETTER READABILITY LIKE THIS:
+# Direct Translation
+Nein, danke. Schon gut.
+No, thank you. All good.
+# Word-by-Word Breakdown
+- Nein = No
+- danke = thank you
+- Schon gut = All good
+# examples of different ways to say the same thing
+- Nein, danke. Schon gut. = No, thank you. All good.
+- Ich möchte das nicht. = I don't want that.
+- Das ist nicht nötig. = That's not necessary.
 
-Format your responses using markdown for better readability.
-Be very generous with double quotes - wrap ANY term in double quotes. This greatly improves readability and helps users distinguish between regular text and terms content. When in doubt, use double quotes!`;
+Remember: You have access to the full conversation history, so always consider the context of what has been discussed before.`;
 
-        messages = [{ role: 'system', content: systemPrompt }, ...messages];
-      }
+      // Check if conversation history already has a system message
+      const hasSystemMessage = conversationHistory.some(msg => msg.role === 'system');
+      
+      // Prepare full conversation context
+      const fullConversation: ChatMessage[] = [
+        // Only add system prompt if there isn't one already
+        ...(hasSystemMessage ? [] : [{ role: 'system' as const, content: systemPrompt }]),
+        ...conversationHistory,
+        { role: 'user', content: message }
+      ];
 
       const response = await this.client.chat({
         model,
-        messages,
+        messages: fullConversation,
         stream: false
       });
       
       return response.message?.content || '';
     } catch (error) {
-      console.error('Error in chat:', error);
+      console.error('Error in chat with context:', error);
       throw new Error('Failed to generate response');
     }
   }
@@ -117,7 +131,18 @@ Keep responses concise but educational. Focus on helping the learner understand 
       { role: 'user', content: `Translate this German text: "${text}"` }
     ];
 
-    return this.chat(model, messages);
+    try {
+      const response = await this.client.chat({
+        model,
+        messages,
+        stream: false
+      });
+      
+      return response.message?.content || '';
+    } catch (error) {
+      console.error('Error in translation:', error);
+      throw new Error('Failed to translate text');
+    }
   }
 }
 

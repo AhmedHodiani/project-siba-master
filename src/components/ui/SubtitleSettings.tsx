@@ -165,7 +165,7 @@ export function SubtitleSettings({
                 </div>
               </div>
 
-              {/* <div className="setting-group">
+              <div className="setting-group">
                 <label className="setting-label" htmlFor="subtitle-position">
                   Subtitle Position
                 </label>
@@ -178,7 +178,7 @@ export function SubtitleSettings({
                   <option value="onscreen">On Screen (Over Video)</option>
                   <option value="below">Below Video</option>
                 </select>
-              </div> */}
+              </div>
 
               <div className="setting-info">
                 <p className="info-text">

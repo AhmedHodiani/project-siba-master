@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Button, MarkdownEditor, VideoPreview } from '../ui';
 import { CreateFlashcardData } from '../../lib/types/database';
+import { useOllama } from '../../hooks/useOllama';
 import './AddFlashcardDialog.css';
 
 interface AddFlashcardDialogProps {
@@ -30,12 +31,15 @@ export const AddFlashcardDialog: React.FC<AddFlashcardDialogProps> = ({
   const [editedSubtitleText, setEditedSubtitleText] = useState(subtitleText);
   const [freeSpace, setFreeSpace] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
   
   // Time adjustment state
   const [adjustedStartTime, setAdjustedStartTime] = useState(startTime);
   const [adjustedEndTime, setAdjustedEndTime] = useState(endTime);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(startTime);
+
+  const { translateGerman } = useOllama();
 
   // Reset times when props change
   useEffect(() => {
@@ -80,6 +84,26 @@ export const AddFlashcardDialog: React.FC<AddFlashcardDialogProps> = ({
     const newTime = Math.max(adjustedStartTime + 0.5, adjustedEndTime + delta);
     setAdjustedEndTime(newTime);
   }, [adjustedStartTime, adjustedEndTime]);
+
+  const handleGenerateAIText = useCallback(async () => {
+    if (!editedSubtitleText.trim()) {
+      setError('Please enter subtitle text first');
+      return;
+    }
+
+    setAiLoading(true);
+    setError(null);
+
+    try {
+      const generatedText = await translateGerman(editedSubtitleText.trim());
+      setFreeSpace(generatedText);
+    } catch (err) {
+      console.error('Error generating AI text:', err);
+      setError('Failed to generate AI translation. Please try again.');
+    } finally {
+      setAiLoading(false);
+    }
+  }, [editedSubtitleText, translateGerman]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -277,7 +301,16 @@ export const AddFlashcardDialog: React.FC<AddFlashcardDialogProps> = ({
         {/* Right Column */}
         <div className="right-column">
           <div className="form-section">
-            <div className="form-group">
+            <div className="form-group markdown-editor-container">
+              <button
+                type="button"
+                className="ai-generate-button"
+                onClick={handleGenerateAIText}
+                disabled={loading || aiLoading || !editedSubtitleText.trim()}
+                title="Generate AI translation and notes"
+              >
+                {aiLoading ? '⏳' : '🤖'}
+              </button>
               <MarkdownEditor
                 value={freeSpace}
                 onChange={setFreeSpace}

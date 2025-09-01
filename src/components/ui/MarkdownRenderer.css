@@ -10,15 +10,13 @@
 .markdown-renderer h4,
 .markdown-renderer h5,
 .markdown-renderer h6 {
-  margin: 16px 0 8px 0;
+  margin: 16px 0 -10px 0;
   color: #f0f0f0;
   font-weight: 600;
 }
 
 .markdown-renderer h1 { 
   font-size: 1.4em; 
-  border-bottom: 1px solid #333; 
-  padding-bottom: 4px; 
 }
 
 .markdown-renderer h2 { 
@@ -39,12 +37,14 @@
 
 .markdown-renderer ul,
 .markdown-renderer ol {
-  margin: 8px 0;
+  margin: 2px 0;
   padding-left: 20px;
+  line-height: 1;
 }
 
 .markdown-renderer li {
-  margin: 4px 0;
+  margin: 0px 0;
+  line-height: 1;
 }
 
 .markdown-renderer blockquote {

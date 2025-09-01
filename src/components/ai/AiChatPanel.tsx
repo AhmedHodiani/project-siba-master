@@ -39,8 +39,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     error,
     isAvailable,
     models,
-    askQuestion,
-    translateGerman,
+    chatWithContext,
     checkAvailability,
     loadModels,
     clearError,
@@ -100,7 +99,16 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     
     try {
       const startTime = Date.now();
-      const response = await askQuestion(userMessage, undefined, selectedModel);
+      let response: string;
+      
+      const conversationHistory = messages.map(msg => ({
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content
+      }));
+      
+      // Use context-aware chat that includes conversation history
+      response = await chatWithContext(userMessage, conversationHistory, selectedModel);
+      
       const endTime = Date.now();
       
       // Calculate metrics
@@ -122,11 +130,20 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   const handleTranslateSubtitle = async () => {
     if (!currentSubtitle || isLoading) return;
     
-    addMessage('user', `Translate: "${currentSubtitle}"`);
+    const translateMessage = `Please translate this German text to English: "${currentSubtitle}"`;
+    addMessage('user', translateMessage);
     
     try {
       const startTime = Date.now();
-      const translation = await translateGerman(currentSubtitle, selectedModel);
+      
+      // Get current conversation history
+      const conversationHistory = messages.map(msg => ({
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content
+      }));
+      
+      // Use context-aware chat for translation
+      const translation = await chatWithContext(translateMessage, conversationHistory, selectedModel);
       const endTime = Date.now();
       
       // Calculate metrics
