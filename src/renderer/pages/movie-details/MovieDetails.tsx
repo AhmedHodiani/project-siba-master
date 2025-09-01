@@ -85,6 +85,11 @@ export const MovieDetails: React.FC = () => {
   // This must be called before any conditional returns to follow React hooks rules
   const goldenLayoutConfig = React.useMemo(
     () => ({
+      settings: {
+        showPopoutIcon: false, // Disable popout feature in Electron
+        showMaximiseIcon: true,
+        showCloseIcon: true,
+      },
       content: [
         {
           type: 'row',

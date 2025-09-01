@@ -190,7 +190,12 @@ ipcMain.handle('ollama-list-models', async () => {
 
 ipcMain.handle('ollama-chat', async (_, model: string, messages: any[]) => {
   try {
-    return await ollamaMainService.chat(model, messages);
+    // Convert messages to the expected format and use chatWithContext
+    const conversationHistory = messages.slice(0, -1); // All messages except the last one
+    const lastMessage = messages[messages.length - 1];
+    const messageContent = typeof lastMessage === 'string' ? lastMessage : lastMessage.content;
+    
+    return await ollamaMainService.chatWithContext(model, messageContent, conversationHistory);
   } catch (error) {
     console.error('Error in Ollama chat:', error);
     throw error;
