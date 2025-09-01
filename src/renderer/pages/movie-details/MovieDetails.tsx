@@ -320,18 +320,14 @@ export const MovieDetails: React.FC = () => {
     if (isRepeating && repeatingSubtitle && videoPlayerRef.current) {
       const adjustedTime = time + subtitleDelay;
       
-      console.log('Repeat check - time:', time, 'adjusted:', adjustedTime, 'subtitle end:', repeatingSubtitle.endTime, 'subtitle start:', repeatingSubtitle.startTime);
-      
       // If we've gone past the end of the repeating subtitle, seek back to the start
       if (adjustedTime >= repeatingSubtitle.endTime - 0.1) { // Small buffer to prevent infinite seeking
         const seekTime = repeatingSubtitle.startTime - subtitleDelay;
-        console.log('Seeking back to start:', seekTime);
         videoPlayerRef.current.seekTo(seekTime);
       }
       // If we're before the start of the repeating subtitle, seek to the start
       else if (adjustedTime < repeatingSubtitle.startTime) {
         const seekTime = repeatingSubtitle.startTime - subtitleDelay;
-        console.log('Seeking to start (before):', seekTime);
         videoPlayerRef.current.seekTo(seekTime);
       }
     }
@@ -417,13 +413,11 @@ export const MovieDetails: React.FC = () => {
       // Seek to the start of this subtitle immediately
       if (videoPlayerRef.current) {
         const seekTime = currentSubtitle.startTime - subtitleDelay;
-        console.log('Repeat enabled - seeking to:', seekTime, 'subtitle:', currentSubtitle.startTime, 'delay:', subtitleDelay);
         videoPlayerRef.current.seekTo(seekTime);
       }
     } else {
       // Clear the locked subtitle when repeat is disabled
       setRepeatingSubtitle(null);
-      console.log('Repeat disabled');
     }
   }, [isRepeating, currentSubtitle, subtitleDelay]);
 

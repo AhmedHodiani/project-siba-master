@@ -302,15 +302,17 @@ export const AddFlashcardDialog: React.FC<AddFlashcardDialogProps> = ({
         <div className="right-column">
           <div className="form-section">
             <div className="form-group markdown-editor-container">
-              <button
+              <Button
+                variant='secondary'
                 type="button"
+                size='small'
                 className="ai-generate-button"
                 onClick={handleGenerateAIText}
                 disabled={loading || aiLoading || !editedSubtitleText.trim()}
                 title="Generate AI translation and notes"
               >
-                {aiLoading ? '⏳' : '🤖'}
-              </button>
+                {aiLoading ? '⏳' : 'AI'}
+              </Button>
               <MarkdownEditor
                 value={freeSpace}
                 onChange={setFreeSpace}

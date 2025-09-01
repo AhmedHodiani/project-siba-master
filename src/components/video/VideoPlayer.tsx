@@ -317,7 +317,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
         >
           <video
             ref={videoRef}
-            src={url}
+            src={url || undefined}
             onTimeUpdate={handleTimeUpdate}
             onLoadedMetadata={handleLoadedMetadata}
             onPlay={() => setPlaying(true)}
