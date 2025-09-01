@@ -69,13 +69,11 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
     const [volume, setVolume] = useState(1);
     const [muted, setMuted] = useState(false);
     const [fullscreen, setFullscreen] = useState(false);
-    const [showSubtitleSettings, setShowSubtitleSettings] = useState(false);
-    const [showControls, setShowControls] = useState(false);
-    const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const containerRef = useRef<HTMLDivElement>(null);
-
-    const togglePlay = useCallback(() => {
+  const [showSubtitleSettings, setShowSubtitleSettings] = useState(false);
+  const [showControls, setShowControls] = useState(false);
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);    const togglePlay = useCallback(() => {
       if (videoRef.current) {
         if (playing) {
           videoRef.current.pause();
@@ -90,7 +88,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
       if (videoRef.current) {
         const time = videoRef.current.currentTime;
         setCurrentTime(time);
-        onTimeUpdate(time); // Notify parent of time changes
+        onTimeUpdate(time);
       }
     }, [onTimeUpdate]);
     const handleLoadedMetadata = () => {

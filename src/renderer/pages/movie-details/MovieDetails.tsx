@@ -58,6 +58,11 @@ export const MovieDetails: React.FC = () => {
   // AI chat state
   const [isChatInputFocused, setIsChatInputFocused] = useState(false);
 
+  // Repeat state
+  const [isRepeating, setIsRepeating] = useState(false);
+  const [repeatingSubtitle, setRepeatingSubtitle] = useState<SubtitleCue | null>(null);
+  const repeatTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // Computed value to check if any dialog is open or chat input is focused
   const isAnyDialogOpen = showTranslationModal || showAddFlashcardDialog || showViewFlashcardsDialog;
   const shouldDisableKeyboardShortcuts = isAnyDialogOpen || isChatInputFocused;
@@ -96,11 +101,44 @@ export const MovieDetails: React.FC = () => {
                   height: 50,
                 },
                 {
-                  type: 'component',
-                  componentType: 'react-component',
-                  componentState: { componentId: 'ai-chat' },
-                  title: 'AI Chat',
-                },
+                  type: 'row',
+                  content: [
+                    {
+                      type: 'column',
+                      width: 70,
+                      content: [
+                        
+                            {
+                              type: 'component',
+                              componentType: 'react-component',
+                              componentState: { componentId: 'subtitles' },
+                              title: 'Subtitles',
+                              height: 20,
+                            },
+                            {
+                              type: 'component',
+                              componentType: 'react-component',
+                              componentState: { componentId: 'flash-card-actions' },
+                              title: 'Flash Card Actions',
+                              height: 20,
+                            },
+                      ]
+                    },
+                    {
+                      type: 'column',
+                      width: 70,
+                      content: [
+                            {
+                              type: 'component',
+                              componentType: 'react-component',
+                              componentState: { componentId: 'translations' },
+                              title: 'Translations',
+                              height: 60,
+                            },
+                      ]
+                    }
+                  ]
+                }
               ],
             },
             {
@@ -110,17 +148,11 @@ export const MovieDetails: React.FC = () => {
                 {
                   type: 'component',
                   componentType: 'react-component',
-                  componentState: { componentId: 'subtitles-and-translations' },
-                  title: 'Subtitles & Translations',
-                  height: 80,
+                  componentState: { componentId: 'ai-chat' },
+                  title: 'AI Chat',
                 },
-                {
-                  type: 'component',
-                  componentType: 'react-component',
-                  componentState: { componentId: 'flash-card-actions' },
-                  title: 'Flash Card Actions',
-                  height: 20,
-                },
+
+
               ],
             },
 
@@ -191,9 +223,14 @@ export const MovieDetails: React.FC = () => {
 
   // Update current subtitle based on time
   useEffect(() => {
-    const subtitle = getCurrentSubtitle(subtitles, currentTime, subtitleDelay);
-    setCurrentSubtitle(subtitle);
-  }, [subtitles, currentTime, subtitleDelay]);
+    // When repeating, always show the locked subtitle instead of calculating from time
+    if (isRepeating && repeatingSubtitle) {
+      setCurrentSubtitle(repeatingSubtitle);
+    } else {
+      const subtitle = getCurrentSubtitle(subtitles, currentTime, subtitleDelay);
+      setCurrentSubtitle(subtitle);
+    }
+  }, [subtitles, currentTime, subtitleDelay, isRepeating, repeatingSubtitle]);
 
   // Debounced effect to save subtitle delay to database
   useEffect(() => {
@@ -213,6 +250,15 @@ export const MovieDetails: React.FC = () => {
 
     return () => clearTimeout(timeoutId);
   }, [subtitleDelay, movie]);
+
+  // Cleanup repeat timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (repeatTimeoutRef.current) {
+        clearTimeout(repeatTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Subtitle control functions
   const handleSubtitleDelayChange = useCallback((delay: number) => {
@@ -269,7 +315,27 @@ export const MovieDetails: React.FC = () => {
   // Handle time updates from video player
   const handleTimeUpdate = useCallback((time: number) => {
     setCurrentTime(time);
-  }, []);
+    
+    // Handle subtitle repetition
+    if (isRepeating && repeatingSubtitle && videoPlayerRef.current) {
+      const adjustedTime = time + subtitleDelay;
+      
+      console.log('Repeat check - time:', time, 'adjusted:', adjustedTime, 'subtitle end:', repeatingSubtitle.endTime, 'subtitle start:', repeatingSubtitle.startTime);
+      
+      // If we've gone past the end of the repeating subtitle, seek back to the start
+      if (adjustedTime >= repeatingSubtitle.endTime - 0.1) { // Small buffer to prevent infinite seeking
+        const seekTime = repeatingSubtitle.startTime - subtitleDelay;
+        console.log('Seeking back to start:', seekTime);
+        videoPlayerRef.current.seekTo(seekTime);
+      }
+      // If we're before the start of the repeating subtitle, seek to the start
+      else if (adjustedTime < repeatingSubtitle.startTime) {
+        const seekTime = repeatingSubtitle.startTime - subtitleDelay;
+        console.log('Seeking to start (before):', seekTime);
+        videoPlayerRef.current.seekTo(seekTime);
+      }
+    }
+  }, [isRepeating, repeatingSubtitle, subtitleDelay]);
 
   // Detect fullscreen changes
   useEffect(() => {
@@ -341,6 +407,26 @@ export const MovieDetails: React.FC = () => {
     }
   }, []);
 
+  const toggleRepeat = useCallback(() => {
+    const newRepeating = !isRepeating;
+    setIsRepeating(newRepeating);
+    
+    if (newRepeating && currentSubtitle) {
+      // Lock onto the current subtitle when repeat is enabled
+      setRepeatingSubtitle(currentSubtitle);
+      // Seek to the start of this subtitle immediately
+      if (videoPlayerRef.current) {
+        const seekTime = currentSubtitle.startTime - subtitleDelay;
+        console.log('Repeat enabled - seeking to:', seekTime, 'subtitle:', currentSubtitle.startTime, 'delay:', subtitleDelay);
+        videoPlayerRef.current.seekTo(seekTime);
+      }
+    } else {
+      // Clear the locked subtitle when repeat is disabled
+      setRepeatingSubtitle(null);
+      console.log('Repeat disabled');
+    }
+  }, [isRepeating, currentSubtitle, subtitleDelay]);
+
   const handleBack = async () => {
     // Save current position before navigating back
     if (videoPlayerRef.current) {
@@ -400,7 +486,7 @@ export const MovieDetails: React.FC = () => {
             />
           </div>
           <div
-            id="subtitles-and-translations"
+            id="subtitles"
             style={{
               backgroundColor: '#151414ff',
               padding: '16px',
@@ -410,27 +496,6 @@ export const MovieDetails: React.FC = () => {
               height: '100%',
             }}
           >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '16px',
-              }}
-            >
-              <h3 style={{ margin: '0', fontSize: '16px' }}>
-                Subtitles & Translations
-              </h3>
-              <Button
-                onClick={handleTranslateClick}
-                variant="primary"
-                size="small"
-                className={showTranslation ? 'translation-active' : ''}
-              >
-                {showTranslation ? 'Hide Translation' : 'Show Translation'}
-              </Button>
-            </div>
-
             {/* Current Subtitle Display */}
             {subtitlePosition === 'below' && currentSubtitle && (
               <div
@@ -440,15 +505,6 @@ export const MovieDetails: React.FC = () => {
                   zIndex: 30,
                 }}
               >
-                <div
-                  style={{
-                    fontSize: '14px',
-                    color: '#aaa',
-                    marginBottom: '8px',
-                  }}
-                >
-                  Current Subtitle:
-                </div>
                 <div
                   style={{
                     fontSize: `${subtitleSize}px`,
@@ -473,7 +529,44 @@ export const MovieDetails: React.FC = () => {
               </div>
             )}
 
-            {/* Translation Panel */}
+            {/* Repeat Button */}
+            {subtitles.length > 0 && currentSubtitle && (
+              <div style={{ marginBottom: '16px' }}>
+                <Button
+                  onClick={toggleRepeat}
+                  variant={isRepeating ? "primary" : "secondary"}
+                  size="small"
+                >
+                  <span>Repeat</span>
+                  <span style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                    borderRadius: '4px',
+                    padding: '2px 6px',
+                    marginLeft: '4px',
+                    fontSize: '0.9em',
+                  }}>
+                    {isRepeating ? 'On' : 'Off'}
+                  </span>
+                </Button>
+              </div>
+            )}
+
+            {/* Info message when subtitles are onscreen */}
+            {subtitlePosition === 'onscreen' && (
+              <div
+                style={{
+                  textAlign: 'center',
+                  color: '#888',
+                  fontStyle: 'italic',
+                  padding: '12px',
+                }}
+              >
+                Subtitles are displayed on video. Change position to "Below
+                Video" in subtitle settings to show here.
+              </div>
+            )}
+          </div>
+          <div id="translations" style={{ backgroundColor: '#181818ff' }}>
             <IframeTranslationWidget
               text={translationText || currentSubtitle?.text || ''}
               sourceLanguage="de"
@@ -492,21 +585,6 @@ export const MovieDetails: React.FC = () => {
                 }}
               >
                 No subtitle at current time
-              </div>
-            )}
-
-            {/* Info message when subtitles are onscreen */}
-            {subtitlePosition === 'onscreen' && (
-              <div
-                style={{
-                  textAlign: 'center',
-                  color: '#888',
-                  fontStyle: 'italic',
-                  padding: '12px',
-                }}
-              >
-                Subtitles are displayed on video. Change position to "Below
-                Video" in subtitle settings to show here.
               </div>
             )}
           </div>
