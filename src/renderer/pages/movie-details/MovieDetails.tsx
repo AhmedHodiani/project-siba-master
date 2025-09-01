@@ -273,8 +273,8 @@ export const MovieDetails: React.FC = () => {
   const currentContextSubtitle = React.useMemo(() => {
     if (studyMode === 'flashcard') {
       // Use study session cards if active, otherwise use all flashcards
-      const activeCards = studySession ? [studySession.cards[studySession.currentIndex]] : flashcards;
-      return activeCards[0]?.subtitle_text || '';
+      const activeCard = studySession?.cards?.[studySession.currentIndex] || flashcards[0];
+      return activeCard?.subtitle_text || '';
     }
     return currentSubtitle?.text || '';
   }, [studyMode, flashcards, currentSubtitle, studySession]);
@@ -282,8 +282,8 @@ export const MovieDetails: React.FC = () => {
   const currentContextTranslationText = React.useMemo(() => {
     if (studyMode === 'flashcard') {
       // Use study session cards if active, otherwise use all flashcards
-      const activeCards = studySession ? [studySession.cards[studySession.currentIndex]] : flashcards;
-      return activeCards[0]?.subtitle_text || '';
+      const activeCard = studySession?.cards?.[studySession.currentIndex] || flashcards[0];
+      return activeCard?.subtitle_text || '';
     }
     return translationText || currentSubtitle?.text || '';
   }, [studyMode, flashcards, translationText, currentSubtitle, studySession]);
@@ -291,8 +291,8 @@ export const MovieDetails: React.FC = () => {
   const shouldShowTranslation = React.useMemo(() => {
     if (studyMode === 'flashcard') {
       // Show translation if we have active cards (either session or regular)
-      const activeCards = studySession ? [studySession.cards[studySession.currentIndex]] : flashcards;
-      return activeCards.length > 0;
+      const activeCard = studySession?.cards?.[studySession.currentIndex] || flashcards[0];
+      return !!activeCard;
     }
     return showTranslation && !!currentSubtitle;
   }, [studyMode, flashcards, showTranslation, currentSubtitle, studySession]);
@@ -959,9 +959,9 @@ export const MovieDetails: React.FC = () => {
                     margin: '16px'
                   }}>
                     <p style={{ fontSize: '18px', lineHeight: '1.5', marginBottom: '15px' }}>
-                      "{studySession.cards[studySession.currentIndex]?.subtitle_text || 'Loading...'}"
+                      "{studySession?.cards?.[studySession.currentIndex]?.subtitle_text || 'Loading...'}"
                     </p>
-                    {studySession.cards[studySession.currentIndex] && movie && (
+                    {studySession?.cards?.[studySession.currentIndex] && movie && (
                       <div style={{ marginBottom: '15px' }}>
                         <VideoPreview
                           moviePath={movie.mp4_path}
@@ -987,25 +987,37 @@ export const MovieDetails: React.FC = () => {
                     flexWrap: 'wrap'
                   }}>
                     <Button 
-                      onClick={() => studySession.cards[studySession.currentIndex] && handleReviewFlashcard(studySession.cards[studySession.currentIndex].id, 'Again')}
+                      onClick={() => {
+                        const currentCard = studySession?.cards?.[studySession.currentIndex];
+                        if (currentCard) handleReviewFlashcard(currentCard.id, 'Again');
+                      }}
                       variant="secondary"
                     >
                       Again
                     </Button>
                     <Button 
-                      onClick={() => studySession.cards[studySession.currentIndex] && handleReviewFlashcard(studySession.cards[studySession.currentIndex].id, 'Hard')}
+                      onClick={() => {
+                        const currentCard = studySession?.cards?.[studySession.currentIndex];
+                        if (currentCard) handleReviewFlashcard(currentCard.id, 'Hard');
+                      }}
                       variant="secondary"
                     >
                       Hard
                     </Button>
                     <Button 
-                      onClick={() => studySession.cards[studySession.currentIndex] && handleReviewFlashcard(studySession.cards[studySession.currentIndex].id, 'Good')}
+                      onClick={() => {
+                        const currentCard = studySession?.cards?.[studySession.currentIndex];
+                        if (currentCard) handleReviewFlashcard(currentCard.id, 'Good');
+                      }}
                       variant="primary"
                     >
                       Good
                     </Button>
                     <Button 
-                      onClick={() => studySession.cards[studySession.currentIndex] && handleReviewFlashcard(studySession.cards[studySession.currentIndex].id, 'Easy')}
+                      onClick={() => {
+                        const currentCard = studySession?.cards?.[studySession.currentIndex];
+                        if (currentCard) handleReviewFlashcard(currentCard.id, 'Easy');
+                      }}
                       variant="primary"
                     >
                       Easy
