@@ -285,30 +285,29 @@ export const MovieDetails: React.FC = () => {
   // Computed values for current context (movie vs flashcard study)
   const currentContextSubtitle = React.useMemo(() => {
     if (studyMode === 'flashcard') {
-      // Use study session cards if active, otherwise use all flashcards
-      const activeCard = studySession?.cards?.[studySession.currentIndex] || flashcards[0];
+      // Only use study session cards when session is active
+      const activeCard = studySession?.cards?.[studySession.currentIndex];
       return activeCard?.subtitle_text || '';
     }
     return currentSubtitle?.text || '';
-  }, [studyMode, flashcards, currentSubtitle, studySession]);
+  }, [studyMode, currentSubtitle, studySession]);
 
   const currentContextTranslationText = React.useMemo(() => {
     if (studyMode === 'flashcard') {
-      // Use study session cards if active, otherwise use all flashcards
-      const activeCard = studySession?.cards?.[studySession.currentIndex] || flashcards[0];
+      // Only use study session cards when session is active
+      const activeCard = studySession?.cards?.[studySession.currentIndex];
       return activeCard?.subtitle_text || '';
     }
     return translationText || currentSubtitle?.text || '';
-  }, [studyMode, flashcards, translationText, currentSubtitle, studySession]);
+  }, [studyMode, translationText, currentSubtitle, studySession]);
 
   const shouldShowTranslation = React.useMemo(() => {
     if (studyMode === 'flashcard') {
-      // Show translation if we have active cards (either session or regular)
-      const activeCard = studySession?.cards?.[studySession.currentIndex] || flashcards[0];
-      return !!activeCard;
+      // Only show translation when we have an active study session with cards
+      return !!studySession?.cards?.[studySession.currentIndex];
     }
     return showTranslation && !!currentSubtitle;
-  }, [studyMode, flashcards, showTranslation, currentSubtitle, studySession]);
+  }, [studyMode, showTranslation, currentSubtitle, studySession]);
 
   // Load movie data
   const loadMovie = useCallback(async () => {
@@ -618,30 +617,33 @@ export const MovieDetails: React.FC = () => {
   }, []);
 
   const handlePreviewJumpToStart = useCallback(() => {
-    const activeCard = studySession ? studySession.cards[studySession.currentIndex] : flashcards[0];
+    // Only work with active study session cards
+    const activeCard = studySession?.cards?.[studySession.currentIndex];
     if (activeCard) {
       setPreviewTime(activeCard.start_time);
     }
-  }, [flashcards, studySession]);
+  }, [studySession]);
 
   const handlePreviewJumpToEnd = useCallback(() => {
-    const activeCard = studySession ? studySession.cards[studySession.currentIndex] : flashcards[0];
+    // Only work with active study session cards
+    const activeCard = studySession?.cards?.[studySession.currentIndex];
     if (activeCard) {
       setPreviewTime(activeCard.end_time);
     }
-  }, [flashcards, studySession]);
+  }, [studySession]);
 
   // Notes editing handlers
   const handleNotesChange = useCallback((value: string) => {
     setNotesContent(value);
-    // Check if content has changed from original
-    const activeCard = studySession ? studySession.cards[studySession.currentIndex] : flashcards[0];
+    // Check if content has changed from original - only for active study session
+    const activeCard = studySession?.cards?.[studySession.currentIndex];
     const originalContent = activeCard?.free_space || '';
     setHasUnsavedNotes(value !== originalContent);
-  }, [flashcards, studySession]);
+  }, [studySession]);
 
   const handleSaveNotes = useCallback(async () => {
-    const activeCard = studySession ? studySession.cards[studySession.currentIndex] : flashcards[0];
+    // Only save notes for active study session cards
+    const activeCard = studySession?.cards?.[studySession.currentIndex];
     if (!activeCard) return;
     
     try {
@@ -650,36 +652,35 @@ export const MovieDetails: React.FC = () => {
         free_space: notesContent.trim() || undefined
       });
       
-      // If in study session, update the study session cards array to keep it in sync
-      if (studySession) {
-        const updatedCards = [...studySession.cards];
-        updatedCards[studySession.currentIndex] = {
-          ...updatedCards[studySession.currentIndex],
-          free_space: notesContent.trim() || undefined
-        };
-        setStudySession({
-          ...studySession,
-          cards: updatedCards
-        });
-      }
+      // Update the study session cards array to keep it in sync
+      const updatedCards = [...studySession.cards];
+      updatedCards[studySession.currentIndex] = {
+        ...updatedCards[studySession.currentIndex],
+        free_space: notesContent.trim() || undefined
+      };
+      setStudySession({
+        ...studySession,
+        cards: updatedCards
+      });
       
       await loadFlashcards(); // Reload to get updated data
       setHasUnsavedNotes(false);
     } catch (error) {
       console.error('Error saving notes:', error);
     }
-  }, [flashcards, notesContent, loadFlashcards, studySession]);
+  }, [notesContent, loadFlashcards, studySession]);
 
   // Update notes content when current flashcard changes
   useEffect(() => {
-    const activeCard = studySession ? studySession.cards[studySession.currentIndex] : flashcards[0];
+    // Only load notes content when there's an active study session
+    const activeCard = studySession?.cards?.[studySession.currentIndex];
     if (activeCard?.free_space) {
       setNotesContent(activeCard.free_space);
     } else {
       setNotesContent('');
     }
     setHasUnsavedNotes(false); // Reset unsaved state when flashcard changes
-  }, [flashcards, studySession]);
+  }, [studySession]);
 
   const toggleRepeat = useCallback(() => {
     const newRepeating = !isRepeating;
@@ -881,7 +882,7 @@ export const MovieDetails: React.FC = () => {
             )}
             
             {/* No flashcard message */}
-            {studyMode === 'flashcard' && flashcards.length === 0 && (
+            {studyMode === 'flashcard' && !studySession && (
               <div
                 style={{
                   textAlign: 'center',
@@ -890,7 +891,7 @@ export const MovieDetails: React.FC = () => {
                   padding: '12px',
                 }}
               >
-                No flashcard selected for translation
+                Start a study session to view translations
               </div>
             )}
           </div>
@@ -965,8 +966,6 @@ export const MovieDetails: React.FC = () => {
 
                   {/* Current Card */}
                   <div style={{ 
-                    backgroundColor: '#2d2611ff', 
-                    padding: '20px', 
                     borderRadius: '8px',
                     flex: 1,
                     margin: '16px'
@@ -1207,7 +1206,7 @@ export const MovieDetails: React.FC = () => {
               </div>
               
               {(() => {
-                const activeCard = studySession ? studySession.cards[studySession.currentIndex] : flashcards[0];
+                const activeCard = studySession?.cards?.[studySession.currentIndex];
                 return activeCard ? (
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                     <div style={{ flex: 1, width: '100%', height: '100%' }}>
@@ -1231,7 +1230,7 @@ export const MovieDetails: React.FC = () => {
                     color: '#888',
                     fontStyle: 'italic'
                   }}>
-                    No flashcard selected
+                    Start a study session to view and edit notes
                   </div>
                 );
               })()}
