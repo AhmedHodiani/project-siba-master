@@ -16,7 +16,8 @@ import {
   StudySessionDialog,
   AiChatPanel,
   VideoPreview,
-  MarkdownEditor
+  MarkdownEditor,
+  DrawingMode
 } from '../../../components/ui';
 import { MovieRecord, FlashcardRecord } from '../../../lib/types/database';
 import {
@@ -943,7 +944,10 @@ export const MovieDetails: React.FC = () => {
         </div>
       </div>
       <div style={{ flex: 1 }}>
-        <GoldenLayoutWrapper key={studyMode} config={activeLayoutConfig}>
+        {studyMode === 'drawing' ? (
+          <DrawingMode movieId={movie?.id} />
+        ) : (
+          <GoldenLayoutWrapper key={studyMode} config={activeLayoutConfig}>
           <div id="video-player">
             <VideoPlayer
               ref={videoPlayerRef}
@@ -1459,6 +1463,7 @@ export const MovieDetails: React.FC = () => {
             </div>
           </div>
         </GoldenLayoutWrapper>
+        )}
       </div>
 
       {/* Translation Modal for fullscreen mode */}

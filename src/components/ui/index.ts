@@ -15,3 +15,7 @@ export { AiChatPanel } from '../ai/AiChatPanel';
 export { AddFlashcardDialog } from '../flashcard/AddFlashcardDialog';
 export { ViewFlashcardsDialog } from '../flashcard/ViewFlashcardsDialog';
 export { StudySessionDialog } from '../flashcard/StudySessionDialog';
+
+// Drawing components
+export { default as DrawingMode } from '../drawing/DrawingMode';
+export { default as DrawingCanvas } from '../drawing/DrawingCanvas';
