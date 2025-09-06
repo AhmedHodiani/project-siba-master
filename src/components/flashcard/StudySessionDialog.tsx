@@ -14,6 +14,12 @@ interface SessionConfig {
   cardCount: number;
   groupType: string;
   groupName: string;
+  sessionType?: 'standard' | 'mastery';
+  masteryThreshold?: {
+    minStability: number;
+    requiredState: 'Review' | 'any';
+    maxDifficulty?: number;
+  };
 }
 
 interface CardGroup {
@@ -33,6 +39,13 @@ export const StudySessionDialog: React.FC<StudySessionDialogProps> = ({
 }) => {
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
   const [cardCount, setCardCount] = useState(20);
+  const [sessionType, setSessionType] = useState<'standard' | 'mastery'>('standard');
+  const [masteryStability, setMasteryStability] = useState(21); // 3 weeks default
+
+  // Mastery checking function
+  const isCardMastered = (card: FlashcardRecord): boolean => {
+    return card.state === 'Review' && card.stability >= masteryStability;
+  };
 
   // Group flashcards by different criteria
   const cardGroups: CardGroup[] = React.useMemo(() => {
@@ -65,6 +78,15 @@ export const StudySessionDialog: React.FC<StudySessionDialogProps> = ({
     const mediumCards = flashcards.filter(card => card.difficulty >= 4 && card.difficulty < 7);
     const hardCards = flashcards.filter(card => card.difficulty >= 7);
 
+    // Mastery-specific groups
+    const masteredCards = flashcards.filter(card => isCardMastered(card));
+    const unmasteredCards = flashcards.filter(card => !isCardMastered(card));
+    const closeToMastery = flashcards.filter(card => 
+      !isCardMastered(card) && 
+      card.state === 'Review' && 
+      card.stability >= (masteryStability * 0.7) // 70% of mastery threshold
+    );
+
     const groups: CardGroup[] = [
       // Due status groups (highest priority)
       {
@@ -91,6 +113,26 @@ export const StudySessionDialog: React.FC<StudySessionDialogProps> = ({
         color: '#17a2b8',
         priority: 3,
       },
+
+      // Mastery-specific groups (shown when mastery session is selected)
+      ...(sessionType === 'mastery' ? [
+        {
+          id: 'unmastered',
+          name: `🎯 Unmastered (${unmasteredCards.length})`,
+          description: `Cards below mastery threshold (${masteryStability}d stability)`,
+          cards: unmasteredCards,
+          color: '#e83e8c',
+          priority: 3.1,
+        },
+        {
+          id: 'close-to-mastery',
+          name: `🔥 Close to Mastery (${closeToMastery.length})`,
+          description: `Review cards approaching mastery threshold`,
+          cards: closeToMastery,
+          color: '#fd7e14',
+          priority: 3.2,
+        },
+      ] : []),
       
       // State groups
       {
@@ -125,6 +167,18 @@ export const StudySessionDialog: React.FC<StudySessionDialogProps> = ({
         color: '#28a745',
         priority: 7,
       },
+
+      // Mastery status (for standard sessions)
+      ...(sessionType === 'standard' ? [
+        {
+          id: 'mastered',
+          name: `🏆 Mastered (${masteredCards.length})`,
+          description: `Cards that have reached mastery (${masteryStability}d+ stability)`,
+          cards: masteredCards,
+          color: '#28a745',
+          priority: 7.5,
+        },
+      ] : []),
       
       // Difficulty groups
       {
@@ -164,7 +218,7 @@ export const StudySessionDialog: React.FC<StudySessionDialogProps> = ({
     ].filter(group => group.cards.length > 0); // Only show groups with cards
 
     return groups.sort((a, b) => a.priority - b.priority);
-  }, [flashcards]);
+  }, [flashcards, sessionType, masteryStability, isCardMastered]);
 
   // Auto-select the highest priority group with cards
   useEffect(() => {
@@ -179,14 +233,25 @@ export const StudySessionDialog: React.FC<StudySessionDialogProps> = ({
   const handleStartSession = () => {
     if (!selectedGroup) return;
 
-    // Shuffle and limit cards
-    const shuffledCards = [...selectedGroup.cards].sort(() => Math.random() - 0.5);
-    const sessionCards = shuffledCards.slice(0, Math.min(cardCount, maxCards));
+    // For mastery sessions, don't shuffle - maintain priority order
+    // For standard sessions, shuffle for variety
+    const orderedCards = sessionType === 'mastery' 
+      ? [...selectedGroup.cards] 
+      : [...selectedGroup.cards].sort(() => Math.random() - 0.5);
+      
+    const sessionCards = orderedCards.slice(0, Math.min(cardCount, maxCards));
 
     const sessionConfig: SessionConfig = {
       cardCount: sessionCards.length,
       groupType: selectedGroup.id,
       groupName: selectedGroup.name,
+      sessionType,
+      ...(sessionType === 'mastery' && {
+        masteryThreshold: {
+          minStability: masteryStability,
+          requiredState: 'any', // Allow any state to be considered for mastery
+        },
+      }),
     };
 
     onStartSession(sessionCards, sessionConfig);
@@ -199,10 +264,71 @@ export const StudySessionDialog: React.FC<StudySessionDialogProps> = ({
       <div className="study-session-dialog">
         <div className="study-session-dialog-header">
           <h2>🎯 Start Study Session</h2>
-          <button className="close-button" onClick={onClose}>×</button>
+          <button className="close-button" onClick={onClose} title="Close Dialog">
+            ×
+          </button>
         </div>
 
         <div className="study-session-dialog-content">
+          {/* Session Type Selection */}
+          <div className="section">
+            <h3>🎯 Session Type</h3>
+            <div className="session-type-selection">
+              <div 
+                className={`session-type ${sessionType === 'standard' ? 'selected' : ''}`}
+                onClick={() => setSessionType('standard')}
+              >
+                <div className="session-type-header">
+                  <span className="session-type-name">📚 Standard Session</span>
+                  <div className="session-type-indicator" />
+                </div>
+                <div className="session-type-description">
+                  Review a fixed number of cards, then finish
+                </div>
+              </div>
+              
+              <div 
+                className={`session-type ${sessionType === 'mastery' ? 'selected' : ''}`}
+                onClick={() => setSessionType('mastery')}
+              >
+                <div className="session-type-header">
+                  <span className="session-type-name">🏆 Mastery Session</span>
+                  <div className="session-type-indicator" />
+                </div>
+                <div className="session-type-description">
+                  Continue until all cards reach mastery threshold
+                </div>
+              </div>
+            </div>
+
+            {/* Mastery Threshold Configuration */}
+            {sessionType === 'mastery' && (
+              <div className="mastery-config">
+                <label htmlFor="mastery-stability">
+                  <strong>Mastery Threshold:</strong> {masteryStability} days stability
+                </label>
+                <input
+                  id="mastery-stability"
+                  type="range"
+                  min="7"
+                  max="91"
+                  step="7"
+                  value={masteryStability}
+                  onChange={(e) => setMasteryStability(Number(e.target.value))}
+                  style={{
+                    '--progress': `${((masteryStability - 7) / (91 - 7)) * 100}%`
+                  } as React.CSSProperties}
+                />
+                <div className="threshold-labels">
+                  <span>7d (Beginner)</span>
+                  <span>28d (Intermediate)</span>
+                  <span>63d (Advanced)</span>
+                  <span>91d (Expert)</span>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Group Selection */}
           <div className="section">
             <h3>📋 Select Card Group</h3>
@@ -271,16 +397,36 @@ export const StudySessionDialog: React.FC<StudySessionDialogProps> = ({
               <div className="preview-card">
                 <div className="preview-info">
                   <div className="preview-line">
+                    <span className="preview-label">Type:</span>
+                    <span>{sessionType === 'mastery' ? '🏆 Mastery Session' : '📚 Standard Session'}</span>
+                  </div>
+                  <div className="preview-line">
                     <span className="preview-label">Group:</span>
                     <span style={{ color: selectedGroup.color }}>{selectedGroup.name}</span>
                   </div>
                   <div className="preview-line">
                     <span className="preview-label">Cards:</span>
-                    <span>{Math.min(cardCount, maxCards)} cards</span>
+                    <span>
+                      {sessionType === 'mastery' 
+                        ? `Up to ${Math.min(cardCount, maxCards)} cards (until mastery)`
+                        : `${Math.min(cardCount, maxCards)} cards`
+                      }
+                    </span>
                   </div>
+                  {sessionType === 'mastery' && (
+                    <div className="preview-line">
+                      <span className="preview-label">Mastery:</span>
+                      <span>{masteryStability}d stability + Review state</span>
+                    </div>
+                  )}
                   <div className="preview-line">
                     <span className="preview-label">Est. Time:</span>
-                    <span>{Math.ceil(Math.min(cardCount, maxCards) * 0.5)} - {Math.ceil(Math.min(cardCount, maxCards) * 1)} min</span>
+                    <span>
+                      {sessionType === 'mastery' 
+                        ? `${Math.ceil(Math.min(cardCount, maxCards) * 1)} - ${Math.ceil(Math.min(cardCount, maxCards) * 3)} min`
+                        : `${Math.ceil(Math.min(cardCount, maxCards) * 0.5)} - ${Math.ceil(Math.min(cardCount, maxCards) * 1)} min`
+                      }
+                    </span>
                   </div>
                 </div>
               </div>
@@ -297,7 +443,7 @@ export const StudySessionDialog: React.FC<StudySessionDialogProps> = ({
             variant="primary"
             disabled={!selectedGroup || maxCards === 0}
           >
-            🚀 Start Session
+            {sessionType === 'mastery' ? '🏆 Start Mastery Session' : '🚀 Start Session'}
           </Button>
         </div>
       </div>

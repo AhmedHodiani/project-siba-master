@@ -80,16 +80,25 @@ export const MovieDetails: React.FC = () => {
       cardCount: number;
       groupType: string;
       groupName: string;
+      sessionType?: 'standard' | 'mastery';
+      masteryThreshold?: {
+        minStability: number;
+        requiredState: 'Review' | 'any';
+        maxDifficulty?: number;
+      };
     };
     startTime: Date;
     reviewedCards: { id: string; rating: string; timestamp: Date }[];
+    masteredCards?: string[]; // IDs of cards that have reached mastery
+    activeQueue?: FlashcardRecord[]; // Cards still being studied
+    learningQueue?: { card: FlashcardRecord; nextReview: Date }[]; // Cards in learning steps
   } | null>(null);
 
   // AI chat state
   const [isChatInputFocused, setIsChatInputFocused] = useState(false);
 
   // Study mode state
-  const [studyMode, setStudyMode] = useState<'movie' | 'flashcard'>('movie');
+  const [studyMode, setStudyMode] = useState<'movie' | 'flashcard' | 'drawing'>('movie');
 
     // Video preview state for flashcard study
   const [previewPlaying, setPreviewPlaying] = useState(false);
@@ -532,6 +541,174 @@ export const MovieDetails: React.FC = () => {
     }
   }, [loadFlashcards]);
 
+  // Mastery checking logic
+  const isCardMastered = useCallback((card: FlashcardRecord, threshold?: { minStability: number; requiredState: 'Review' | 'any'; maxDifficulty?: number }) => {
+    if (!threshold) {
+      // Default mastery criteria: Review state + 21 days stability
+      return card.state === 'Review' && card.stability >= 21;
+    }
+
+    const meetsState = threshold.requiredState === 'any' || card.state === threshold.requiredState;
+    const meetsStability = card.stability >= threshold.minStability;
+    const meetsDifficulty = !threshold.maxDifficulty || card.difficulty <= threshold.maxDifficulty;
+
+    return meetsState && meetsStability && meetsDifficulty;
+  }, []);
+
+  // Get next card for mastery session
+  const getNextMasteryCard = useCallback((updatedMasteredCards?: string[]) => {
+    if (!studySession || studySession.config.sessionType !== 'mastery') return null;
+
+    const { cards, masteredCards = [], config, currentIndex } = studySession;
+    if (!cards || cards.length === 0) return null;
+
+    // Use provided updated list or current session list
+    const currentMastered = updatedMasteredCards || masteredCards;
+
+    // Start searching from the next card after current
+    const startIndex = (currentIndex + 1) % cards.length;
+    
+    // First, try to find an unmastered card starting from the next position
+    for (let i = 0; i < cards.length; i++) {
+      const index = (startIndex + i) % cards.length;
+      const card = cards[index];
+      
+      if (!currentMastered.includes(card.id) && !isCardMastered(card, config.masteryThreshold)) {
+        return { card, index };
+      }
+    }
+
+    return null;
+  }, [studySession, isCardMastered]);
+
+  // Study session navigation helper
+  const advanceToNextCard = useCallback(async (newReviewedCards?: { id: string; rating: string; timestamp: Date }[]) => {
+    if (!studySession) return;
+    
+    const reviewedCards = newReviewedCards || studySession.reviewedCards;
+    
+    // Handle mastery sessions differently
+    if (studySession.config.sessionType === 'mastery') {
+      // Reload current card to get updated FSRS values
+      const currentCard = studySession.cards[studySession.currentIndex];
+      if (!currentCard) return;
+      
+      try {
+        const updatedCard = await pocketBaseService.getFlashcard(currentCard.id);
+        
+        // Update the card in our session data
+        const updatedCards = [...studySession.cards];
+        updatedCards[studySession.currentIndex] = updatedCard;
+        
+        // Check if this card is now mastered
+        const isNowMastered = isCardMastered(updatedCard, studySession.config.masteryThreshold);
+        const masteredCards = [...(studySession.masteredCards || [])];
+        
+        if (isNowMastered && !masteredCards.includes(updatedCard.id)) {
+          masteredCards.push(updatedCard.id);
+        }
+        
+        // Find next unmastered card
+        const nextCard = getNextMasteryCard(masteredCards);
+        
+        if (!nextCard) {
+          // All cards mastered! Session complete
+          const sessionDuration = Date.now() - studySession.startTime.getTime();
+          const totalCards = studySession.cards.length;
+          const masteredCount = masteredCards.length;
+          
+          alert(
+            `🎉 Mastery Session Complete!\n\n` +
+            `🏆 Achievement Unlocked: Card Master!\n\n` +
+            `📊 Session Stats:\n` +
+            `• Cards mastered: ${masteredCount}/${totalCards}\n` +
+            `• Time spent: ${Math.round(sessionDuration / 60000)} minutes\n` +
+            `• Average per card: ${Math.round((sessionDuration / 1000) / totalCards)}s\n\n` +
+            `🎯 Ratings Distribution:\n` +
+            `• Again: ${reviewedCards.filter(r => r.rating === 'Again').length}\n` +
+            `• Hard: ${reviewedCards.filter(r => r.rating === 'Hard').length}\n` +
+            `• Good: ${reviewedCards.filter(r => r.rating === 'Good').length}\n` +
+            `• Easy: ${reviewedCards.filter(r => r.rating === 'Easy').length}\n\n` +
+            `🧠 All cards now have strong memory consolidation!`
+          );
+          
+          setStudySession(null);
+          return;
+        }
+        
+        // Update the session with the new state and move to next card
+        const updatedSession = {
+          ...studySession,
+          cards: updatedCards,
+          currentIndex: nextCard.index,
+          reviewedCards,
+          masteredCards,
+        };
+        
+        // Log for debugging
+        console.log('Mastery session advancing:', {
+          currentCardId: currentCard.id,
+          nextCardId: nextCard.card.id,
+          nextIndex: nextCard.index,
+          masteredCount: masteredCards.length,
+          totalCards: updatedCards.length,
+          isCurrentMastered: isNowMastered
+        });
+        
+        setStudySession(updatedSession);
+        
+        // Update video preview
+        if (nextCard.card) {
+          setPreviewTime(nextCard.card.start_time);
+        }
+        
+      } catch (error) {
+        console.error('Failed to reload card for mastery check:', error);
+        // Fall back to standard behavior
+      }
+      
+      return;
+    }
+    
+    // Standard session logic (unchanged)
+    const nextIndex = studySession.currentIndex + 1;
+    
+    if (nextIndex >= studySession.cards.length) {
+      // Session completed - show stats and reset
+      const sessionDuration = Date.now() - studySession.startTime.getTime();
+      const avgTimePerCard = sessionDuration / studySession.cards.length;
+      
+      alert(
+        `🎉 Study Session Complete!\n\n` +
+        `📊 Session Stats:\n` +
+        `• Cards reviewed: ${studySession.cards.length}\n` +
+        `• Time spent: ${Math.round(sessionDuration / 60000)} minutes\n` +
+        `• Average per card: ${Math.round(avgTimePerCard / 1000)}s\n\n` +
+        `🎯 Ratings:\n` +
+        `• Again: ${reviewedCards.filter(r => r.rating === 'Again').length}\n` +
+        `• Hard: ${reviewedCards.filter(r => r.rating === 'Hard').length}\n` +
+        `• Good: ${reviewedCards.filter(r => r.rating === 'Good').length}\n` +
+        `• Easy: ${reviewedCards.filter(r => r.rating === 'Easy').length}\n` +
+        `• Skipped: ${studySession.cards.length - reviewedCards.length}`
+      );
+      
+      setStudySession(null);
+    } else {
+      // Move to next card and auto-jump video preview to new card's start time
+      const nextCard = studySession.cards[nextIndex];
+      setStudySession({
+        ...studySession,
+        currentIndex: nextIndex,
+        reviewedCards,
+      });
+      
+      // Automatically jump the video preview to the next card's start time
+      if (nextCard) {
+        setPreviewTime(nextCard.start_time);
+      }
+    }
+  }, [studySession, isCardMastered, getNextMasteryCard]);
+
   const handleReviewFlashcard = useCallback(async (id: string, rating: 'Again' | 'Hard' | 'Good' | 'Easy') => {
     try {
       await pocketBaseService.reviewFlashcard(id, rating);
@@ -540,42 +717,7 @@ export const MovieDetails: React.FC = () => {
       if (studySession) {
         const reviewedCard = { id, rating, timestamp: new Date() };
         const newReviewedCards = [...studySession.reviewedCards, reviewedCard];
-        
-        const nextIndex = studySession.currentIndex + 1;
-        
-        if (nextIndex >= studySession.cards.length) {
-          // Session completed - show stats and reset
-          const sessionDuration = Date.now() - studySession.startTime.getTime();
-          const avgTimePerCard = sessionDuration / studySession.cards.length;
-          
-          alert(
-            `🎉 Study Session Complete!\n\n` +
-            `📊 Session Stats:\n` +
-            `• Cards reviewed: ${studySession.cards.length}\n` +
-            `• Time spent: ${Math.round(sessionDuration / 60000)} minutes\n` +
-            `• Average per card: ${Math.round(avgTimePerCard / 1000)}s\n\n` +
-            `🎯 Ratings:\n` +
-            `• Again: ${newReviewedCards.filter(r => r.rating === 'Again').length}\n` +
-            `• Hard: ${newReviewedCards.filter(r => r.rating === 'Hard').length}\n` +
-            `• Good: ${newReviewedCards.filter(r => r.rating === 'Good').length}\n` +
-            `• Easy: ${newReviewedCards.filter(r => r.rating === 'Easy').length}`
-          );
-          
-          setStudySession(null);
-        } else {
-          // Move to next card and auto-jump video preview to new card's start time
-          const nextCard = studySession.cards[nextIndex];
-          setStudySession({
-            ...studySession,
-            currentIndex: nextIndex,
-            reviewedCards: newReviewedCards,
-          });
-          
-          // Automatically jump the video preview to the next card's start time
-          if (nextCard) {
-            setPreviewTime(nextCard.start_time);
-          }
-        }
+        advanceToNextCard(newReviewedCards);
       }
       
       await loadFlashcards(); // Reload flashcards to show updated state
@@ -583,19 +725,55 @@ export const MovieDetails: React.FC = () => {
       console.error('Error reviewing flashcard:', error);
       throw error;
     }
-  }, [loadFlashcards, studySession]);
+  }, [loadFlashcards, studySession, advanceToNextCard]);
 
   // Study session handlers
   const handleStartStudySession = useCallback((selectedCards: FlashcardRecord[], sessionConfig: any) => {
+    const isMasterySession = sessionConfig.sessionType === 'mastery';
+    
+    // For mastery sessions, find the first unmastered card
+    let startIndex = 0;
+    if (isMasterySession) {
+      const threshold = sessionConfig.masteryThreshold;
+      for (let i = 0; i < selectedCards.length; i++) {
+        if (!isCardMastered(selectedCards[i], threshold)) {
+          startIndex = i;
+          break;
+        }
+      }
+    }
+    
+    // Initialize mastery tracking for mastery sessions
+    const initialMasteredCards = isMasterySession 
+      ? selectedCards.filter(card => 
+          isCardMastered(card, sessionConfig.masteryThreshold)
+        ).map(card => card.id)
+      : [];
+
     setStudySession({
       cards: selectedCards,
-      currentIndex: 0,
+      currentIndex: startIndex,
       config: sessionConfig,
       startTime: new Date(),
       reviewedCards: [],
+      ...(isMasterySession && {
+        masteredCards: initialMasteredCards,
+        activeQueue: selectedCards,
+        learningQueue: [],
+      }),
     });
+    
+    // Set initial preview time
+    if (selectedCards[startIndex]) {
+      setPreviewTime(selectedCards[startIndex].start_time);
+    }
+    
     setShowStudySessionDialog(false);
-  }, []);
+  }, [isCardMastered]);
+
+  const handleSkipFlashcard = useCallback(() => {
+    advanceToNextCard();
+  }, [advanceToNextCard]);
 
   const handleEndStudySession = useCallback(() => {
     setStudySession(null);
@@ -754,6 +932,13 @@ export const MovieDetails: React.FC = () => {
             size="small"
           >
             Flashcard Study
+          </Button>
+          <Button 
+            onClick={() => setStudyMode('drawing')} 
+            variant={studyMode === 'drawing' ? 'danger' : 'secondary'} 
+            size="small"
+          >
+            Drawing
           </Button>
         </div>
       </div>
@@ -954,10 +1139,21 @@ export const MovieDetails: React.FC = () => {
                     <div>
                       <div style={{ fontSize: '14px', color: '#888' }}>
                         {studySession.config.groupName}
+                        {studySession.config.sessionType === 'mastery' && ' - Mastery Session'}
                       </div>
                       <div style={{ fontSize: '16px', fontWeight: 'bold' }}>
                         Card {studySession.currentIndex + 1} of {studySession.cards.length}
                       </div>
+                      {studySession.config.sessionType === 'mastery' && (
+                        <div style={{ fontSize: '12px', color: '#aaa', marginTop: '4px' }}>
+                          {(() => {
+                            const totalCards = studySession.cards.length;
+                            const masteredCards = studySession.masteredCards || [];
+                            const masteredCount = masteredCards.length;
+                            return `Mastered: ${masteredCount}/${totalCards} (${Math.round((masteredCount/totalCards)*100)}%)`;
+                          })()}
+                        </div>
+                      )}
                     </div>
                     <Button onClick={handleEndStudySession} variant="secondary" size="small">
                       End Session
@@ -1054,40 +1250,66 @@ export const MovieDetails: React.FC = () => {
                     flexWrap: 'wrap'
                   }}>
                     <Button 
-                      onClick={() => {
-                        const currentCard = studySession?.cards?.[studySession.currentIndex];
-                        if (currentCard) handleReviewFlashcard(currentCard.id, 'Again');
+                      onClick={async () => {
+                        try {
+                          const currentCard = studySession?.cards?.[studySession.currentIndex];
+                          if (currentCard) await handleReviewFlashcard(currentCard.id, 'Again');
+                        } catch (error) {
+                          console.error('Error rating card Again:', error);
+                          alert('Error rating card. Please try again.');
+                        }
                       }}
                       variant="secondary"
                     >
                       Again
                     </Button>
                     <Button 
-                      onClick={() => {
-                        const currentCard = studySession?.cards?.[studySession.currentIndex];
-                        if (currentCard) handleReviewFlashcard(currentCard.id, 'Hard');
+                      onClick={async () => {
+                        try {
+                          const currentCard = studySession?.cards?.[studySession.currentIndex];
+                          if (currentCard) await handleReviewFlashcard(currentCard.id, 'Hard');
+                        } catch (error) {
+                          console.error('Error rating card Hard:', error);
+                          alert('Error rating card. Please try again.');
+                        }
                       }}
                       variant="secondary"
                     >
                       Hard
                     </Button>
                     <Button 
-                      onClick={() => {
-                        const currentCard = studySession?.cards?.[studySession.currentIndex];
-                        if (currentCard) handleReviewFlashcard(currentCard.id, 'Good');
+                      onClick={async () => {
+                        try {
+                          const currentCard = studySession?.cards?.[studySession.currentIndex];
+                          if (currentCard) await handleReviewFlashcard(currentCard.id, 'Good');
+                        } catch (error) {
+                          console.error('Error rating card Good:', error);
+                          alert('Error rating card. Please try again.');
+                        }
                       }}
                       variant="primary"
                     >
                       Good
                     </Button>
                     <Button 
-                      onClick={() => {
-                        const currentCard = studySession?.cards?.[studySession.currentIndex];
-                        if (currentCard) handleReviewFlashcard(currentCard.id, 'Easy');
+                      onClick={async () => {
+                        try {
+                          const currentCard = studySession?.cards?.[studySession.currentIndex];
+                          if (currentCard) await handleReviewFlashcard(currentCard.id, 'Easy');
+                        } catch (error) {
+                          console.error('Error rating card Easy:', error);
+                          alert('Error rating card. Please try again.');
+                        }
                       }}
                       variant="primary"
                     >
                       Easy
+                    </Button>
+                    <Button 
+                      onClick={handleSkipFlashcard}
+                      variant="secondary"
+                    >
+                      Skip
                     </Button>
                   </div>
                 </div>
