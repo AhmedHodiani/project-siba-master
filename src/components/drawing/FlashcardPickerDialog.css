@@ -1,0 +1,184 @@
+.flashcard-picker-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.flashcard-picker-dialog {
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  border: 1px solid #444;
+  width: 90vw;
+  max-width: 800px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+.flashcard-picker-header {
+  padding: 20px;
+  border-bottom: 1px solid #444;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.flashcard-picker-header h3 {
+  margin: 0;
+  color: #f0f0f0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.flashcard-picker-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.flashcard-picker-loading,
+.flashcard-picker-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #888;
+  text-align: center;
+}
+
+.flashcard-picker-empty p {
+  margin: 8px 0;
+  line-height: 1.5;
+}
+
+.flashcard-picker-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.flashcard-picker-item {
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid #444;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.flashcard-picker-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #666;
+}
+
+.flashcard-picker-item.selected {
+  background: rgba(0, 122, 204, 0.2);
+  border-color: #007acc;
+  box-shadow: 0 0 8px rgba(0, 122, 204, 0.3);
+}
+
+.flashcard-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.flashcard-subtitle {
+  font-size: 16px;
+  color: #f0f0f0;
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+.flashcard-metadata {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.flashcard-timing {
+  font-size: 14px;
+  color: #aaa;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.flashcard-timing .duration {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 6px;
+  font-size: 12px;
+}
+
+.flashcard-stats {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #888;
+  flex-wrap: wrap;
+}
+
+.flashcard-stats > span {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
+.flashcard-stats .state {
+  background: rgba(0, 122, 204, 0.2);
+  color: #66b3ff;
+}
+
+.flashcard-stats .due {
+  background: rgba(255, 193, 7, 0.2);
+}
+
+.flashcard-stats .difficulty {
+  background: rgba(220, 53, 69, 0.2);
+  color: #ff6b6b;
+}
+
+.flashcard-stats .stability {
+  background: rgba(40, 167, 69, 0.2);
+  color: #51cf66;
+}
+
+.flashcard-picker-footer {
+  padding: 20px;
+  border-top: 1px solid #444;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Scrollbar styling */
+.flashcard-picker-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.flashcard-picker-list::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.flashcard-picker-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+.flashcard-picker-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}

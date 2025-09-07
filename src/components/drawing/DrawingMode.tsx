@@ -39,7 +39,11 @@ export const DrawingMode: React.FC<DrawingModeProps> = ({ movieId }) => {
       </div>
       
       <div className="drawing-mode-content" ref={containerRef}>
-        <DrawingCanvas width={dimensions.width} height={dimensions.height} />
+        <DrawingCanvas 
+          width={dimensions.width} 
+          height={dimensions.height}
+          movieId={movieId}
+        />
       </div>
     </div>
   );
