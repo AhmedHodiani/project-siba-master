@@ -20,20 +20,25 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height }) =
   const svgRef = useRef<SVGSVGElement>(null);
 
   // Calculate viewBox - center the canvas at (0,0)
-  const baseViewBoxSize = 1000;
-  const viewBoxSize = Math.max(baseViewBoxSize, baseViewBoxSize / viewport.zoom * 2);
-  const viewBoxX = viewport.x - viewBoxSize / 2;
-  const viewBoxY = viewport.y - viewBoxSize / 2;
+  // Make viewBox responsive to actual screen dimensions and zoom level
+  const viewBoxWidth = width / viewport.zoom;
+  const viewBoxHeight = height / viewport.zoom;
+  const viewBoxX = viewport.x - viewBoxWidth / 2;
+  const viewBoxY = viewport.y - viewBoxHeight / 2;
 
   // Calculate infinite grid using mathematical tiling approach
   const gridSpacing = 40; // Grid cell size
-  const buffer = viewBoxSize; // Buffer around visible area
+  
+  // Calculate actual screen coverage in world coordinates with generous buffer
+  const screenWorldWidth = width / viewport.zoom;
+  const screenWorldHeight = height / viewport.zoom;
+  const buffer = Math.max(screenWorldWidth, screenWorldHeight); // Larger buffer to ensure full coverage
   
   // Calculate which grid lines we need to draw within the visible area + buffer
-  const startX = Math.floor((viewBoxX - buffer) / gridSpacing) * gridSpacing;
-  const endX = Math.ceil((viewBoxX + viewBoxSize + buffer) / gridSpacing) * gridSpacing;
-  const startY = Math.floor((viewBoxY - buffer) / gridSpacing) * gridSpacing;
-  const endY = Math.ceil((viewBoxY + viewBoxSize + buffer) / gridSpacing) * gridSpacing;
+  const startX = Math.floor((viewport.x - screenWorldWidth/2 - buffer) / gridSpacing) * gridSpacing;
+  const endX = Math.ceil((viewport.x + screenWorldWidth/2 + buffer) / gridSpacing) * gridSpacing;
+  const startY = Math.floor((viewport.y - screenWorldHeight/2 - buffer) / gridSpacing) * gridSpacing;
+  const endY = Math.ceil((viewport.y + screenWorldHeight/2 + buffer) / gridSpacing) * gridSpacing;
 
   // Generate grid lines dynamically
   const gridLines = [];
@@ -68,18 +73,34 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height }) =
     );
   }
 
-  // Handle wheel zoom
+  // Handle wheel zoom with mouse position tracking
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
     
+    if (!svgRef.current) return;
+    
     const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
     const newZoom = Math.max(0.1, Math.min(5, viewport.zoom * zoomFactor));
+    
+    // Get mouse position relative to SVG
+    const rect = svgRef.current.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    
+    // Convert mouse position to world coordinates BEFORE zoom
+    const worldX = viewport.x + (mouseX - width / 2) / viewport.zoom;
+    const worldY = viewport.y + (mouseY - height / 2) / viewport.zoom;
+    
+    // Calculate new viewport position to keep world point under mouse
+    const newViewportX = worldX - (mouseX - width / 2) / newZoom;
+    const newViewportY = worldY - (mouseY - height / 2) / newZoom;
 
-    setViewport(prev => ({
-      ...prev,
+    setViewport({
+      x: newViewportX,
+      y: newViewportY,
       zoom: newZoom
-    }));
-  }, [viewport.zoom]);
+    });
+  }, [viewport.zoom, viewport.x, viewport.y, width, height]);
 
   // Handle mouse down
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -104,17 +125,18 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height }) =
   const handleMouseUp = useCallback(() => {
     if (isDragging) {
       // Convert drag offset to viewport coordinates
-      // When we drag canvas right (+dragOffset.x), we want to see content from the left (-viewport.x)
-      const scaleFactor = viewBoxSize / (Math.min(width, height) * viewport.zoom);
+      // Simple conversion: screen pixels to world coordinates
+      const scaleFactorX = viewBoxWidth / width;
+      const scaleFactorY = viewBoxHeight / height;
       setViewport(prev => ({
         ...prev,
-        x: prev.x - dragOffset.x * scaleFactor,
-        y: prev.y - dragOffset.y * scaleFactor
+        x: prev.x - dragOffset.x * scaleFactorX,
+        y: prev.y - dragOffset.y * scaleFactorY
       }));
     }
     setIsDragging(false);
     setDragOffset({ x: 0, y: 0 });
-  }, [isDragging, dragOffset, viewport.zoom, viewBoxSize, width, height]);
+  }, [isDragging, dragOffset, viewBoxWidth, viewBoxHeight, width, height]);
 
   // Global mouse events
   useEffect(() => {
@@ -128,12 +150,13 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height }) =
       const handleGlobalMouseUp = () => {
         if (isDragging) {
           // Convert drag offset to viewport coordinates
-          // When we drag canvas right (+dragOffset.x), we want to see content from the left (-viewport.x)
-          const scaleFactor = viewBoxSize / (Math.min(width, height) * viewport.zoom);
+          // Simple conversion: screen pixels to world coordinates
+          const scaleFactorX = viewBoxWidth / width;
+          const scaleFactorY = viewBoxHeight / height;
           setViewport(prev => ({
             ...prev,
-            x: prev.x - dragOffset.x * scaleFactor,
-            y: prev.y - dragOffset.y * scaleFactor
+            x: prev.x - dragOffset.x * scaleFactorX,
+            y: prev.y - dragOffset.y * scaleFactorY
           }));
         }
         setIsDragging(false);
@@ -148,12 +171,12 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height }) =
         document.removeEventListener('mouseup', handleGlobalMouseUp);
       };
     }
-  }, [isDragging, dragStart, dragOffset, viewport.zoom, viewBoxSize, width, height]);
+  }, [isDragging, dragStart, dragOffset, viewport.zoom, viewBoxWidth, viewBoxHeight, width, height]);
 
-  // Calculate current transform for visual feedback during drag
+  // Calculate current transform for real-time visual feedback during drag
   const currentTransform = isDragging 
-    ? `translate(${dragOffset.x}px, ${dragOffset.y}px) scale(${viewport.zoom})`
-    : `scale(${viewport.zoom})`;
+    ? `translate(${dragOffset.x}px, ${dragOffset.y}px)`
+    : '';
 
   return (
     <div className="drawing-canvas-container">
@@ -170,7 +193,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height }) =
         className="drawing-canvas"
         width={width}
         height={height}
-        viewBox={`${viewBoxX} ${viewBoxY} ${viewBoxSize} ${viewBoxSize}`}
+        viewBox={`${viewBoxX} ${viewBoxY} ${viewBoxWidth} ${viewBoxHeight}`}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -185,8 +208,8 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height }) =
         <rect
           x={viewBoxX}
           y={viewBoxY}
-          width={viewBoxSize}
-          height={viewBoxSize}
+          width={viewBoxWidth}
+          height={viewBoxHeight}
           fill="#1a1a1a"
         />
 
@@ -234,7 +257,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height }) =
 
         {/* Axis labels */}
         <text
-          x={viewBoxX + viewBoxSize - 30}
+          x={viewBoxX + viewBoxWidth - 30}
           y={-10}
           fontSize={12}
           fill="#555"
