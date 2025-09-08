@@ -89,30 +89,30 @@ export const StudySessionDialog: React.FC<StudySessionDialogProps> = ({
 
     const groups: CardGroup[] = [
       // Due status groups (highest priority)
-      {
-        id: 'overdue',
-        name: `📅 Overdue (${overdue.length})`,
-        description: 'Cards that should have been reviewed already',
-        cards: overdue,
-        color: '#dc3545',
-        priority: 1,
-      },
-      {
-        id: 'due-today',
-        name: `⏰ Due Today (${dueToday.length})`,
-        description: 'Cards scheduled for review today',
-        cards: dueToday,
-        color: '#ffc107',
-        priority: 2,
-      },
-      {
-        id: 'due-soon',
-        name: `📆 Due Soon (${dueSoon.length})`,
-        description: 'Cards due within the next week',
-        cards: dueSoon,
-        color: '#17a2b8',
-        priority: 3,
-      },
+      // {
+      //   id: 'overdue',
+      //   name: `📅 Overdue (${overdue.length})`,
+      //   description: 'Cards that should have been reviewed already',
+      //   cards: overdue,
+      //   color: '#dc3545',
+      //   priority: 1,
+      // },
+      // {
+      //   id: 'due-today',
+      //   name: `⏰ Due Today (${dueToday.length})`,
+      //   description: 'Cards scheduled for review today',
+      //   cards: dueToday,
+      //   color: '#ffc107',
+      //   priority: 2,
+      // },
+      // {
+      //   id: 'due-soon',
+      //   name: `📆 Due Soon (${dueSoon.length})`,
+      //   description: 'Cards due within the next week',
+      //   cards: dueSoon,
+      //   color: '#17a2b8',
+      //   priority: 3,
+      // },
 
       // Mastery-specific groups (shown when mastery session is selected)
       ...(sessionType === 'mastery' ? [
@@ -151,14 +151,14 @@ export const StudySessionDialog: React.FC<StudySessionDialogProps> = ({
         color: '#fd7e14',
         priority: 5,
       },
-      {
-        id: 'relearning',
-        name: `🔄 Relearning (${relearningCards.length})`,
-        description: 'Cards you need to relearn',
-        cards: relearningCards,
-        color: '#e83e8c',
-        priority: 6,
-      },
+      // {
+      //   id: 'relearning',
+      //   name: `🔄 Relearning (${relearningCards.length})`,
+      //   description: 'Cards you need to relearn',
+      //   cards: relearningCards,
+      //   color: '#e83e8c',
+      //   priority: 6,
+      // },
       {
         id: 'review',
         name: `✅ Review (${reviewCards.length})`,
@@ -169,16 +169,16 @@ export const StudySessionDialog: React.FC<StudySessionDialogProps> = ({
       },
 
       // Mastery status (for standard sessions)
-      ...(sessionType === 'standard' ? [
-        {
-          id: 'mastered',
-          name: `🏆 Mastered (${masteredCards.length})`,
-          description: `Cards that have reached mastery (${masteryStability}d+ stability)`,
-          cards: masteredCards,
-          color: '#28a745',
-          priority: 7.5,
-        },
-      ] : []),
+      // ...(sessionType === 'standard' ? [
+      //   {
+      //     id: 'mastered',
+      //     name: `🏆 Mastered (${masteredCards.length})`,
+      //     description: `Cards that have reached mastery (${masteryStability}d+ stability)`,
+      //     cards: masteredCards,
+      //     color: '#28a745',
+      //     priority: 7.5,
+      //   },
+      // ] : []),
       
       // Difficulty groups
       {
@@ -189,22 +189,22 @@ export const StudySessionDialog: React.FC<StudySessionDialogProps> = ({
         color: '#dc3545',
         priority: 8,
       },
-      {
-        id: 'medium',
-        name: `⚖️ Medium Cards (${mediumCards.length})`,
-        description: 'Moderately difficult cards (difficulty 4-7)',
-        cards: mediumCards,
-        color: '#ffc107',
-        priority: 9,
-      },
-      {
-        id: 'easy',
-        name: `😊 Easy Cards (${easyCards.length})`,
-        description: 'Less challenging cards (difficulty < 4)',
-        cards: easyCards,
-        color: '#28a745',
-        priority: 10,
-      },
+      // {
+      //   id: 'medium',
+      //   name: `⚖️ Medium Cards (${mediumCards.length})`,
+      //   description: 'Moderately difficult cards (difficulty 4-7)',
+      //   cards: mediumCards,
+      //   color: '#ffc107',
+      //   priority: 9,
+      // },
+      // {
+      //   id: 'easy',
+      //   name: `😊 Easy Cards (${easyCards.length})`,
+      //   description: 'Less challenging cards (difficulty < 4)',
+      //   cards: easyCards,
+      //   color: '#28a745',
+      //   priority: 10,
+      // },
       
       // All cards option
       {

@@ -443,6 +443,33 @@ class PocketBaseService {
     return updatedFlashcard;
   }
 
+  // Reset FSRS metrics for a flashcard back to initial state
+  async resetFlashcardFSRS(id: string): Promise<FlashcardRecord> {
+    const pb = await this.getPocketBase();
+    
+    // Import ts-fsrs dynamically to get initial values
+    const { createEmptyCard } = await import('ts-fsrs');
+    
+    // Create fresh FSRS card with initial values
+    const fsrsCard = createEmptyCard(new Date());
+    
+    // Reset to initial FSRS state
+    const resetData: UpdateFlashcardData = {
+      due: fsrsCard.due.toISOString(),
+      stability: fsrsCard.stability,
+      difficulty: fsrsCard.difficulty,
+      elapsed_days: fsrsCard.elapsed_days,
+      scheduled_days: fsrsCard.scheduled_days,
+      reps: fsrsCard.reps,
+      lapses: fsrsCard.lapses,
+      learning_steps: fsrsCard.learning_steps,
+      state: 'New',
+      last_review: undefined,
+    };
+    
+    return this.updateFlashcard(id, resetData);
+  }
+
   // ===== REVIEW LOG OPERATIONS =====
 
   // Create review log

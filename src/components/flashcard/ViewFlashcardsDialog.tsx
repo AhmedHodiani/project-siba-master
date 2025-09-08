@@ -18,6 +18,7 @@ interface ViewFlashcardsDialogProps {
   onEdit: (flashcard: FlashcardRecord) => void;
   onDelete: (id: string) => Promise<void>;
   onReview: (id: string, rating: 'Again' | 'Hard' | 'Good' | 'Easy') => Promise<void>;
+  onResetFSRS: (id: string) => Promise<void>;
   onJumpToTime: (startTime: number) => void;
   loading?: boolean;
 }
@@ -29,6 +30,7 @@ export const ViewFlashcardsDialog: React.FC<ViewFlashcardsDialogProps> = ({
   onEdit,
   onDelete,
   onReview,
+  onResetFSRS,
   onJumpToTime,
   loading = false,
 }) => {
@@ -258,6 +260,13 @@ export const ViewFlashcardsDialog: React.FC<ViewFlashcardsDialogProps> = ({
                             size="small"
                           >
                             Edit
+                          </Button>
+                          <Button
+                            onClick={() => onResetFSRS(card.id)}
+                            variant="secondary"
+                            size="small"
+                          >
+                            Reset FSRS
                           </Button>
                           <Button
                             onClick={() => onDelete(card.id)}
