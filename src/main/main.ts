@@ -314,9 +314,35 @@ app.on('window-all-closed', () => {
   }
 });
 
+
+
+import { spawn } from "child_process";
+
+function startPocketBase() {
+  const resourcesPath =
+    process.env.NODE_ENV === "development"
+      ? path.join(__dirname, "..", "..", "assets", "pocketbase")
+      : path.join(process.resourcesPath, "assets", "pocketbase");
+
+  const pbBinary =
+    process.platform === "win32"
+      ? path.join(resourcesPath, "pocketbase-windows.exe")
+      : path.join(resourcesPath, "pocketbase-linux");
+
+  const pb = spawn(pbBinary, ["serve", "--http=127.0.0.1:8090"], {
+    cwd: resourcesPath,
+  });
+
+  pb.stdout.on("data", (d) => console.log(`[PB] ${d}`));
+  pb.stderr.on("data", (d) => console.error(`[PB ERROR] ${d}`));
+}
+
+
 app
   .whenReady()
   .then(() => {
+    startPocketBase();
+    
     createWindow();
     app.on('activate', () => {
       // On macOS it's common to re-create a window in the app when the
