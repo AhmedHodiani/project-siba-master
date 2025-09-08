@@ -16,13 +16,6 @@
   border-bottom: 1px solid #333;
 }
 
-.drawing-mode-header h3 {
-  margin: 0;
-  color: #f0f0f0;
-  font-size: 16px;
-  font-weight: 600;
-}
-
 .drawing-mode-info {
   font-size: 12px;
   color: #888;
@@ -33,4 +26,203 @@
   flex: 1;
   position: relative;
   overflow: hidden;
+}
+
+/* Canvas Dropdown - Simplified */
+.canvas-dropdown {
+  position: relative;
+}
+
+.canvas-dropdown-trigger {
+  background: #2a2a2a;
+  border: 1px solid #555;
+  color: #ffffff;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 280px;
+  outline: none;
+  font-family: inherit;
+}
+
+.canvas-dropdown-trigger:hover {
+  background: #3a3a3a;
+  border-color: #666;
+}
+
+.canvas-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.canvas-count {
+  font-size: 11px;
+  color: #888888;
+  margin-left: auto;
+  margin-right: 8px;
+}
+
+.dropdown-arrow {
+  font-size: 10px;
+  color: #888888;
+  transition: color 0.15s ease;
+}
+
+.dropdown-arrow.open {
+  color: #cccccc;
+}
+
+/* Dropdown Menu - Floating Popup */
+.canvas-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: #1e1e1e;
+  border: 1px solid #404040;
+  min-width: 320px;
+  max-height: 400px;
+  overflow-y: auto;
+  z-index: 10000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.new-canvas-btn {
+  width: 100%;
+  background: #333333;
+  border: none;
+  border-bottom: 1px solid #404040;
+  color: #ffffff;
+  padding: 12px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.new-canvas-btn:hover {
+  background: #404040;
+}
+
+/* Canvas Rows - Simplified */
+
+.canvas-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #2a2a2a;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.canvas-row:hover {
+  background: #252525;
+}
+
+.canvas-row.active {
+  background: #2d2d2d;
+  border-left: 2px solid #0078d4;
+  padding-left: 14px;
+}
+
+.canvas-row.new-canvas {
+  background: #1e2a1e;
+  border-left: 2px solid #00a86b;
+  padding-left: 14px;
+}
+
+.canvas-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.canvas-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #ffffff;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canvas-info {
+  font-size: 10px;
+  color: #888888;
+  margin-top: 2px;
+}
+
+/* Input and Buttons - Simplified */
+.canvas-input {
+  flex: 1;
+  background: #2a2a2a;
+  border: 1px solid #555555;
+  color: #ffffff;
+  padding: 6px 10px;
+  font-size: 12px;
+  outline: none;
+}
+
+.canvas-input:focus {
+  border-color: #0078d4;
+}
+
+.save-btn, .cancel-btn, .edit-btn, .delete-btn {
+  background: transparent;
+  border: 1px solid #555555;
+  color: #cccccc;
+  padding: 4px 8px;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.save-btn:hover {
+  background: #0078d4;
+  border-color: #0078d4;
+  color: #ffffff;
+}
+
+.cancel-btn:hover, .edit-btn:hover {
+  background: #333333;
+  color: #ffffff;
+}
+
+.delete-btn:hover {
+  background: #4a1a1a;
+  border-color: #666666;
+  color: #ff6b6b;
+}
+
+/* Empty Message - Simplified */
+.empty-message {
+  text-align: center;
+  padding: 30px 20px;
+  color: #888888;
+}
+
+.empty-message p {
+  margin: 0 0 15px 0;
+  font-size: 13px;
+}
+
+.create-first-btn {
+  background: #333333;
+  border: 1px solid #555555;
+  color: #ffffff;
+  padding: 8px 16px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.create-first-btn:hover {
+  background: #404040;
+  border-color: #666666;
 }

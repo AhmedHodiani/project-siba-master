@@ -1,6 +1,6 @@
 .drawing-toolbar {
   position: absolute;
-  top: 130px;
+  top: 140px;
   left: 10px;
   background: rgba(0, 0, 0, 0.8);
   backdrop-filter: blur(10px);

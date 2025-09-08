@@ -12,6 +12,24 @@ export interface Bounds {
   height: number;
 }
 
+export interface Canvas {
+  id: string;
+  title: string;
+  createdAt: Date;
+  lastModified: Date;
+  objects: DrawingObject[];
+  viewport?: {
+    x: number;
+    y: number;
+    zoom: number;
+  };
+}
+
+export interface CanvasState {
+  canvases: Canvas[];
+  activeCanvasId: string | null;
+}
+
 export type DrawingObjectType = 
   | 'flashcard'
   | 'translation'
