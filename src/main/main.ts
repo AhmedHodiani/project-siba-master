@@ -16,6 +16,7 @@ import log from 'electron-log';
 import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
 import { ollamaMainService } from './ollama-service';
+import { spawn } from "child_process";
 
 class AppUpdater {
   constructor() {
@@ -314,9 +315,6 @@ app.on('window-all-closed', () => {
   }
 });
 
-
-
-import { spawn } from "child_process";
 
 function startPocketBase() {
   const resourcesPath =
