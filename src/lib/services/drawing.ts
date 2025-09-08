@@ -120,6 +120,19 @@ export class DrawingUtils {
           }
         };
 
+      case 'freehand':
+        return {
+          ...baseObject,
+          type: 'freehand',
+          points: [data.startPoint],
+          style: {
+            ...baseObject.style,
+            fill: 'none',
+            stroke: '#000000',
+            strokeWidth: 2
+          }
+        };
+
       default:
         throw new Error(`Unknown object type: ${data.type}`);
     }
@@ -187,6 +200,23 @@ export class DrawingUtils {
           y: obj.y,
           width: obj.width,
           height: obj.height
+        };
+
+      case 'freehand':
+        if (obj.points.length === 0) {
+          return { x: obj.x, y: obj.y, width: 10, height: 10 };
+        }
+        const xCoords = obj.points.map(p => p.x);
+        const yCoords = obj.points.map(p => p.y);
+        const freehandMinX = Math.min(...xCoords);
+        const freehandMinY = Math.min(...yCoords);
+        const freehandMaxX = Math.max(...xCoords);
+        const freehandMaxY = Math.max(...yCoords);
+        return {
+          x: freehandMinX - 5, // Add padding for easier selection
+          y: freehandMinY - 5,
+          width: (freehandMaxX - freehandMinX) + 10,
+          height: (freehandMaxY - freehandMinY) + 10
         };
 
       default:

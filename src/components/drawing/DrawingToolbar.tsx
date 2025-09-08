@@ -17,6 +17,7 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
     { type: 'circle', label: 'Circle', icon: '○' },
     { type: 'line', label: 'Line', icon: '/' },
     { type: 'text', label: 'Text', icon: 'T' },
+    { type: 'freehand', label: 'Freehand', icon: '✏️' },
     { type: 'flashcard', label: 'Flashcard', icon: '📇' },
     { type: 'translation', label: 'Translation', icon: '🌐' }
   ];

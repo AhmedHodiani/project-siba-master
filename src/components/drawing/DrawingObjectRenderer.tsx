@@ -1,5 +1,5 @@
 import React from 'react';
-import { DrawingObject, FlashcardObject, TranslationObject } from '../../lib/types/drawing';
+import { DrawingObject, FlashcardObject, TranslationObject, FreehandObject, ToolType } from '../../lib/types/drawing';
 import { TextEditor } from './TextEditor';
 import { FlashcardWidget } from './FlashcardWidget';
 import { TranslationWidget } from './TranslationWidget';
@@ -13,6 +13,7 @@ interface DrawingObjectRendererProps {
   onStartDrag?: (objectId: string, startPoint: { x: number; y: number }) => void;
   isDragging?: boolean;
   draggedObjectId?: string | null;
+  currentTool?: ToolType;
 }
 
 export const DrawingObjectRenderer: React.FC<DrawingObjectRendererProps> = ({
@@ -23,7 +24,8 @@ export const DrawingObjectRenderer: React.FC<DrawingObjectRendererProps> = ({
   onUpdate,
   onStartDrag,
   isDragging = false,
-  draggedObjectId
+  draggedObjectId,
+  currentTool
 }) => {
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -108,6 +110,11 @@ export const DrawingObjectRenderer: React.FC<DrawingObjectRendererProps> = ({
       
       // Special handling for flashcard mouse events to enable dragging
       const handleFlashcardMouseDown = (e: React.MouseEvent) => {
+        // If freehand tool is active, don't intercept the event - let it bubble up for drawing
+        if (currentTool === 'freehand') {
+          return; // Don't stop propagation, let the canvas handle drawing
+        }
+        
         e.stopPropagation();
         e.preventDefault();
         
@@ -140,7 +147,7 @@ export const DrawingObjectRenderer: React.FC<DrawingObjectRendererProps> = ({
           style={{
             cursor: object.selected ? 'move' : 'pointer',
             overflow: 'visible',
-            pointerEvents: 'all'
+            pointerEvents: currentTool === 'freehand' ? 'none' : 'all'
           }}
           onMouseDown={handleFlashcardMouseDown}
           onClick={handleClick}
@@ -164,6 +171,11 @@ export const DrawingObjectRenderer: React.FC<DrawingObjectRendererProps> = ({
       
       // Special handling for translation widget mouse events to enable dragging
       const handleTranslationMouseDown = (e: React.MouseEvent) => {
+        // If freehand tool is active, don't intercept the event - let it bubble up for drawing
+        if (currentTool === 'freehand') {
+          return; // Don't stop propagation, let the canvas handle drawing
+        }
+        
         e.stopPropagation();
         e.preventDefault();
         
@@ -208,7 +220,7 @@ export const DrawingObjectRenderer: React.FC<DrawingObjectRendererProps> = ({
           style={{
             cursor: object.selected ? 'move' : 'pointer',
             overflow: 'visible',
-            pointerEvents: 'all'
+            pointerEvents: currentTool === 'freehand' ? 'none' : 'all'
           }}
           onMouseDown={handleTranslationMouseDown}
           onClick={handleClick}
@@ -221,6 +233,33 @@ export const DrawingObjectRenderer: React.FC<DrawingObjectRendererProps> = ({
             onLanguageChange={handleLanguageChange}
           />
         </foreignObject>
+      );
+
+    case 'freehand':
+      const freehandObj = object as FreehandObject;
+      
+      // Create SVG path from points
+      if (freehandObj.points.length < 2) {
+        return null; // Need at least 2 points to draw
+      }
+      
+      const pathData = freehandObj.points.reduce((path, point, index) => {
+        if (index === 0) {
+          return `M ${point.x} ${point.y}`;
+        } else {
+          return `${path} L ${point.x} ${point.y}`;
+        }
+      }, '');
+
+      return (
+        <path
+          d={pathData}
+          {...baseProps}
+          style={{
+            ...baseProps.style,
+            fill: 'none', // Ensure freehand is never filled
+          }}
+        />
       );
 
     default:

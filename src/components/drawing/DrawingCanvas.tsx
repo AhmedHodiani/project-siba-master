@@ -8,6 +8,7 @@ import { SelectionHandles } from './SelectionHandles';
 import { TextPropertiesPanel } from './TextPropertiesPanel';
 import { FlashcardPickerDialog } from './FlashcardPickerDialog';
 import { ContextMenu } from './ContextMenu';
+import { BrushPropertiesPanel } from './BrushPropertiesPanel';
 import './DrawingCanvas.css';
 
 interface Viewport {
@@ -41,6 +42,14 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
   const [isEditingText, setIsEditingText] = useState(false);
   const [showFlashcardPicker, setShowFlashcardPicker] = useState(false);
   const [flashcardPlacementPoint, setFlashcardPlacementPoint] = useState<Point | null>(null);
+  const [currentFreehandId, setCurrentFreehandId] = useState<string | null>(null);
+  
+  // Brush properties state
+  const [brushProperties, setBrushProperties] = useState({
+    strokeColor: '#000000',
+    strokeWidth: 2,
+    opacity: 1
+  });
   
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{
@@ -147,8 +156,45 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
       const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
       const worldPoint = DrawingUtils.screenToWorld(screenPoint, viewport, { width, height });
 
-      if (drawingState.selectedTool === 'select') {
-        // Check if clicking on a selected object first
+      // Check tool first - drawing tools take priority over object interaction
+      if (drawingState.selectedTool === 'translation') {
+        // Create translation widget immediately on click
+        const newObject = DrawingUtils.createObject({
+          type: 'translation',
+          startPoint: worldPoint
+        });
+
+        setDrawingState(prev => ({
+          ...prev,
+          objects: [...prev.objects, newObject],
+          selectedTool: 'select', // Switch back to select tool
+          selectedObjectIds: [newObject.id] // Select the new object
+        }));
+      } else if (drawingState.selectedTool === 'freehand') {
+        // Start freehand drawing immediately - ignore object interactions
+        const newObject = DrawingUtils.createObject({
+          type: 'freehand',
+          startPoint: worldPoint
+        });
+
+        // Apply current brush properties
+        newObject.style = {
+          ...newObject.style,
+          stroke: brushProperties.strokeColor,
+          strokeWidth: brushProperties.strokeWidth,
+          opacity: brushProperties.opacity
+        };
+
+        setDrawingState(prev => ({
+          ...prev,
+          objects: [...prev.objects, newObject]
+        }));
+        
+        setCurrentFreehandId(newObject.id);
+        setIsDrawing(true);
+        setDrawStart(worldPoint);
+      } else if (drawingState.selectedTool === 'select') {
+        // Only handle object selection/dragging when in select mode
         const clickedObject = drawingState.objects.find(obj => 
           obj.selected && DrawingUtils.isPointInObject(worldPoint, obj)
         );
@@ -179,27 +225,12 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
           }
         }
       } else {
-        // Handle drawing new objects
-        if (drawingState.selectedTool === 'translation') {
-          // Create translation widget immediately on click
-          const newObject = DrawingUtils.createObject({
-            type: 'translation',
-            startPoint: worldPoint
-          });
-
-          setDrawingState(prev => ({
-            ...prev,
-            objects: [...prev.objects, newObject],
-            selectedTool: 'select', // Switch back to select tool
-            selectedObjectIds: [newObject.id] // Select the new object
-          }));
-        } else {
-          setIsDrawing(true);
-          setDrawStart(worldPoint);
-        }
+        // Handle other drawing tools (rectangle, circle, line, text)
+        setIsDrawing(true);
+        setDrawStart(worldPoint);
       }
     }
-  }, [drawingState.selectedTool, drawingState.objects, viewport, width, height]);
+  }, [drawingState.selectedTool, drawingState.objects, viewport, width, height, brushProperties]);
 
   // Handle right-click context menu
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
@@ -270,9 +301,30 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
       }));
 
       // Don't update objectDragStart - keep it fixed at the original drag start position
+    } else if (isDrawing && currentFreehandId && drawingState.selectedTool === 'freehand') {
+      // Add point to current freehand path
+      const rect = svgRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const worldPoint = DrawingUtils.screenToWorld(screenPoint, viewport, { width, height });
+
+      setDrawingState(prev => ({
+        ...prev,
+        objects: prev.objects.map(obj => {
+          if (obj.id === currentFreehandId && obj.type === 'freehand') {
+            const freehandObj = obj as any; // Cast to access points
+            return {
+              ...freehandObj,
+              points: [...freehandObj.points, worldPoint]
+            };
+          }
+          return obj;
+        })
+      }));
     }
     // Drawing preview could be handled here in the future
-  }, [isDragging, isDraggingObject, draggedObjectId, objectDragStart, objectOriginalPosition, dragStart, viewport, width, height]);
+  }, [isDragging, isDraggingObject, draggedObjectId, objectDragStart, objectOriginalPosition, dragStart, viewport, width, height, isDrawing, currentFreehandId, drawingState.selectedTool]);
 
   // Handle mouse up - commit drag movement, create object, or finish object drag
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
@@ -294,28 +346,35 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
       setObjectDragStart(null);
       setObjectOriginalPosition(null);
     } else if (isDrawing && drawStart) {
-      // Create new drawing object
-      const rect = svgRef.current?.getBoundingClientRect();
-      if (!rect) return;
+      if (drawingState.selectedTool === 'freehand' && currentFreehandId) {
+        // Finish freehand drawing - object already exists, just clean up state
+        setCurrentFreehandId(null);
+        setIsDrawing(false);
+        setDrawStart(null);
+      } else {
+        // Create new drawing object for other tools
+        const rect = svgRef.current?.getBoundingClientRect();
+        if (!rect) return;
 
-      const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-      const worldPoint = DrawingUtils.screenToWorld(screenPoint, viewport, { width, height });
+        const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        const worldPoint = DrawingUtils.screenToWorld(screenPoint, viewport, { width, height });
 
-      const newObject = DrawingUtils.createObject({
-        type: drawingState.selectedTool as any,
-        startPoint: drawStart,
-        endPoint: worldPoint
-      });
+        const newObject = DrawingUtils.createObject({
+          type: drawingState.selectedTool as any,
+          startPoint: drawStart,
+          endPoint: worldPoint
+        });
 
-      setDrawingState(prev => ({
-        ...prev,
-        objects: [...prev.objects, newObject]
-      }));
+        setDrawingState(prev => ({
+          ...prev,
+          objects: [...prev.objects, newObject]
+        }));
 
-      setIsDrawing(false);
-      setDrawStart(null);
+        setIsDrawing(false);
+        setDrawStart(null);
+      }
     }
-  }, [isDragging, isDraggingObject, isDrawing, drawStart, dragOffset, viewBoxWidth, viewBoxHeight, width, height, viewport, drawingState.selectedTool]);
+  }, [isDragging, isDraggingObject, isDrawing, drawStart, dragOffset, viewBoxWidth, viewBoxHeight, width, height, viewport, drawingState.selectedTool, currentFreehandId]);
 
   // Global mouse events
   // Keyboard shortcuts
@@ -576,6 +635,19 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
     setIsEditingText(false);
   }, []);
 
+  // Brush properties handlers
+  const handleStrokeColorChange = useCallback((color: string) => {
+    setBrushProperties(prev => ({ ...prev, strokeColor: color }));
+  }, []);
+
+  const handleStrokeWidthChange = useCallback((width: number) => {
+    setBrushProperties(prev => ({ ...prev, strokeWidth: width }));
+  }, []);
+
+  const handleOpacityChange = useCallback((opacity: number) => {
+    setBrushProperties(prev => ({ ...prev, opacity }));
+  }, []);
+
   // Calculate current transform for real-time visual feedback during drag
   const currentTransform = isDragging 
     ? `translate(${dragOffset.x}px, ${dragOffset.y}px)`
@@ -595,6 +667,20 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
           object={drawingState.objects.find(obj => obj.selected && obj.type === 'text') as TextObject}
           onUpdate={handleObjectUpdate}
         />
+      )}
+
+      {/* Brush Properties Panel - show when freehand tool is selected */}
+      {drawingState.selectedTool === 'freehand' && (
+        <div className="brush-properties-container">
+          <BrushPropertiesPanel
+            strokeColor={brushProperties.strokeColor}
+            strokeWidth={brushProperties.strokeWidth}
+            opacity={brushProperties.opacity}
+            onStrokeColorChange={handleStrokeColorChange}
+            onStrokeWidthChange={handleStrokeWidthChange}
+            onOpacityChange={handleOpacityChange}
+          />
+        </div>
       )}
 
       {/* Canvas Info Overlay */}
@@ -711,6 +797,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
             onStartDrag={handleObjectDragStart}
             isDragging={isDraggingObject}
             draggedObjectId={draggedObjectId}
+            currentTool={drawingState.selectedTool}
           />
         ))}
 

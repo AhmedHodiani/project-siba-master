@@ -60,6 +60,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       case 'circle': return 'Circle';
       case 'line': return 'Line';
       case 'text': return 'Text';
+      case 'freehand': return 'Freehand Drawing';
       case 'translation': return 'Translation Widget';
       default: return 'Object';
     }

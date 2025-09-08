@@ -18,7 +18,8 @@ export type DrawingObjectType =
   | 'line' 
   | 'text' 
   | 'flashcard'
-  | 'translation';
+  | 'translation'
+  | 'freehand';
 
 export interface BaseDrawingObject {
   id: string;
@@ -75,13 +76,19 @@ export interface TranslationObject extends BaseDrawingObject {
   height: number;
 }
 
+export interface FreehandObject extends BaseDrawingObject {
+  type: 'freehand';
+  points: Point[];
+}
+
 export type DrawingObject = 
   | RectangleObject 
   | CircleObject 
   | LineObject 
   | TextObject 
   | FlashcardObject
-  | TranslationObject;
+  | TranslationObject
+  | FreehandObject;
 
 export type ToolType = 
   | 'select' 
@@ -90,7 +97,8 @@ export type ToolType =
   | 'line' 
   | 'text' 
   | 'flashcard'
-  | 'translation';
+  | 'translation'
+  | 'freehand';
 
 export interface DrawingState {
   objects: DrawingObject[];
