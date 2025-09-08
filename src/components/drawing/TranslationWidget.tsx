@@ -98,7 +98,7 @@ export const TranslationWidget: React.FC<TranslationWidgetProps> = ({
           </div>
 
           {object.text && (
-            <div className="translation-iframe-container" style={{ marginTop: '-65px' }}>
+            <div className="translation-iframe-container" style={{ marginTop: '-5px' }}>
               <iframe
                 src={translationUrl}
                 className="translation-iframe"
