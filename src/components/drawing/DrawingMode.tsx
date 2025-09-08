@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import DrawingCanvas from './DrawingCanvas';
 import { Canvas, CanvasState } from '../../lib/types/drawing';
 import './DrawingMode.css';
@@ -92,8 +92,8 @@ export const DrawingMode: React.FC<DrawingModeProps> = ({ movieId }) => {
     return canvasState.canvases.find(c => c.id === canvasState.activeCanvasId) || null;
   };
 
-  // Handle canvas updates from DrawingCanvas
-  const handleCanvasUpdate = (canvasId: string, updates: Partial<Canvas>) => {
+  // Handle canvas updates from DrawingCanvas - wrapped in useCallback to prevent infinite loops
+  const handleCanvasUpdate = useCallback((canvasId: string, updates: Partial<Canvas>) => {
     setCanvasState(prev => ({
       ...prev,
       canvases: prev.canvases.map(canvas =>
@@ -102,7 +102,7 @@ export const DrawingMode: React.FC<DrawingModeProps> = ({ movieId }) => {
           : canvas
       )
     }));
-  };
+  }, []);
 
   // Dropdown handlers
   const handleCreateCanvas = () => {
