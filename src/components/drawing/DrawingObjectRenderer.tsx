@@ -1,6 +1,5 @@
 import React from 'react';
 import { DrawingObject, FlashcardObject, TranslationObject, FreehandObject, ToolType } from '../../lib/types/drawing';
-import { TextEditor } from './TextEditor';
 import { FlashcardWidget } from './FlashcardWidget';
 import { TranslationWidget } from './TranslationWidget';
 
@@ -50,61 +49,6 @@ export const DrawingObjectRenderer: React.FC<DrawingObjectRendererProps> = ({
   }
 
   switch (object.type) {
-    case 'rectangle':
-      return (
-        <rect
-          x={object.x}
-          y={object.y}
-          width={object.width}
-          height={object.height}
-          {...baseProps}
-        />
-      );
-
-    case 'circle':
-      return (
-        <circle
-          cx={object.x}
-          cy={object.y}
-          r={object.radius}
-          {...baseProps}
-        />
-      );
-
-    case 'line':
-      return (
-        <line
-          x1={object.x}
-          y1={object.y}
-          x2={object.endX}
-          y2={object.endY}
-          {...baseProps}
-        />
-      );
-
-    case 'text':
-      if (viewport && onUpdate) {
-        return (
-          <TextEditor
-            object={object}
-            viewport={viewport}
-            onUpdate={onUpdate}
-            onFinish={() => {}}
-          />
-        );
-      }
-      return (
-        <text
-          x={object.x}
-          y={object.y}
-          fontSize={object.fontSize}
-          fontFamily={object.fontFamily}
-          {...baseProps}
-        >
-          {object.text}
-        </text>
-      );
-
     case 'flashcard':
       const flashcardObj = object as FlashcardObject;
       

@@ -13,10 +13,6 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
 }) => {
   const tools: { type: ToolType; label: string; icon: string }[] = [
     { type: 'select', label: 'Select', icon: '↖' },
-    { type: 'rectangle', label: 'Rectangle', icon: '▭' },
-    { type: 'circle', label: 'Circle', icon: '○' },
-    { type: 'line', label: 'Line', icon: '/' },
-    { type: 'text', label: 'Text', icon: 'T' },
     { type: 'freehand', label: 'Freehand', icon: '✏️' },
     { type: 'flashcard', label: 'Flashcard', icon: '📇' },
     { type: 'translation', label: 'Translation', icon: '🌐' }

@@ -47,49 +47,6 @@ export class DrawingUtils {
     };
 
     switch (data.type) {
-      case 'rectangle':
-        const width = Math.abs((data.endPoint?.x || data.startPoint.x) - data.startPoint.x);
-        const height = Math.abs((data.endPoint?.y || data.startPoint.y) - data.startPoint.y);
-        return {
-          ...baseObject,
-          type: 'rectangle',
-          width: Math.max(width, 10), // Minimum size
-          height: Math.max(height, 10)
-        };
-
-      case 'circle':
-        const radius = Math.max(
-          Math.sqrt(
-            Math.pow((data.endPoint?.x || data.startPoint.x) - data.startPoint.x, 2) +
-            Math.pow((data.endPoint?.y || data.startPoint.y) - data.startPoint.y, 2)
-          ),
-          5 // Minimum radius
-        );
-        return {
-          ...baseObject,
-          type: 'circle',
-          radius
-        };
-
-      case 'line':
-        return {
-          ...baseObject,
-          type: 'line',
-          endX: data.endPoint?.x || data.startPoint.x + 50,
-          endY: data.endPoint?.y || data.startPoint.y,
-          style: { ...baseObject.style, fill: 'none' }
-        };
-
-      case 'text':
-        return {
-          ...baseObject,
-          type: 'text',
-          text: data.text || 'Double-click to edit',
-          fontSize: 18,
-          fontFamily: 'Arial, sans-serif',
-          style: { ...baseObject.style, stroke: 'none', fill: '#000000' }
-        };
-
       case 'flashcard':
         return {
           ...baseObject,
@@ -141,51 +98,6 @@ export class DrawingUtils {
   // Get bounding box for any drawing object
   static getBounds(obj: DrawingObject): Bounds {
     switch (obj.type) {
-      case 'rectangle':
-        return {
-          x: obj.x,
-          y: obj.y,
-          width: obj.width,
-          height: obj.height
-        };
-
-      case 'circle':
-        return {
-          x: obj.x - obj.radius,
-          y: obj.y - obj.radius,
-          width: obj.radius * 2,
-          height: obj.radius * 2
-        };
-
-      case 'line':
-        const minX = Math.min(obj.x, obj.endX);
-        const minY = Math.min(obj.y, obj.endY);
-        const maxX = Math.max(obj.x, obj.endX);
-        const maxY = Math.max(obj.y, obj.endY);
-        return {
-          x: minX,
-          y: minY,
-          width: maxX - minX,
-          height: maxY - minY
-        };
-
-      case 'text':
-        // Better text bounds calculation for multi-line support
-        const lines = obj.text.split('\n');
-        const longestLine = lines.reduce((longest, line) => 
-          line.length > longest.length ? line : longest, '');
-        const charWidth = obj.fontSize * 0.6;
-        const textWidth = Math.max(longestLine.length * charWidth, 50); // Minimum clickable width
-        const lineHeight = obj.fontSize * 1.2;
-        const textHeight = lines.length * lineHeight;
-        
-        return {
-          x: obj.x - 5, // Add small padding for easier selection
-          y: obj.y - obj.fontSize - 5, // SVG text y is baseline, adjust for top
-          width: textWidth + 10, // Add padding
-          height: textHeight + 10 // Add padding
-        };
-
       case 'flashcard':
         return {
           x: obj.x,
@@ -220,7 +132,7 @@ export class DrawingUtils {
         };
 
       default:
-        throw new Error(`Unknown object type: ${(obj as any).type}`);
+        return { x: 0, y: 0, width: 0, height: 0 };
     }
   }
 

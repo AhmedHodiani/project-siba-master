@@ -1,11 +1,10 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { DrawingObject, ToolType, Point, DrawingState, TextObject } from '../../lib/types/drawing';
+import { DrawingObject, ToolType, Point, DrawingState } from '../../lib/types/drawing';
 import { FlashcardRecord } from '../../lib/types/database';
 import { DrawingUtils } from '../../lib/services/drawing';
 import { DrawingToolbar } from './DrawingToolbar';
 import { DrawingObjectRenderer } from './DrawingObjectRenderer';
 import { SelectionHandles } from './SelectionHandles';
-import { TextPropertiesPanel } from './TextPropertiesPanel';
 import { FlashcardPickerDialog } from './FlashcardPickerDialog';
 import { ContextMenu } from './ContextMenu';
 import { BrushPropertiesPanel } from './BrushPropertiesPanel';
@@ -39,7 +38,6 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
   const [draggedObjectId, setDraggedObjectId] = useState<string | null>(null);
   const [objectDragStart, setObjectDragStart] = useState<Point | null>(null);
   const [objectOriginalPosition, setObjectOriginalPosition] = useState<Point | null>(null);
-  const [isEditingText, setIsEditingText] = useState(false);
   const [showFlashcardPicker, setShowFlashcardPicker] = useState(false);
   const [flashcardPlacementPoint, setFlashcardPlacementPoint] = useState<Point | null>(null);
   const [currentFreehandId, setCurrentFreehandId] = useState<string | null>(null);
@@ -252,10 +250,10 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
             setDragOffset({ x: 0, y: 0 });
           }
         }
-      } else {
-        // Handle other drawing tools (rectangle, circle, line, text)
-        setIsDrawing(true);
-        setDrawStart(worldPoint);
+      } else if (drawingState.selectedTool === 'flashcard') {
+        // Handle flashcard placement
+        setFlashcardPlacementPoint(worldPoint);
+        setShowFlashcardPicker(true);
       }
     }
   }, [drawingState.selectedTool, drawingState.objects, viewport, width, height, brushProperties]);
@@ -399,28 +397,8 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
         setDrawStart(null);
         // Reset straight line state
         setStraightLineStart(null);
-      } else {
-        // Create new drawing object for other tools
-        const rect = svgRef.current?.getBoundingClientRect();
-        if (!rect) return;
-
-        const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-        const worldPoint = DrawingUtils.screenToWorld(screenPoint, viewport, { width, height });
-
-        const newObject = DrawingUtils.createObject({
-          type: drawingState.selectedTool as any,
-          startPoint: drawStart,
-          endPoint: worldPoint
-        });
-
-        setDrawingState(prev => ({
-          ...prev,
-          objects: [...prev.objects, newObject]
-        }));
-
-        setIsDrawing(false);
-        setDrawStart(null);
       }
+      // Remove creation logic for other drawing tools since they're no longer supported
     }
   }, [isDragging, isDraggingObject, isDrawing, drawStart, dragOffset, viewBoxWidth, viewBoxHeight, width, height, viewport, drawingState.selectedTool, currentFreehandId]);
 
@@ -639,18 +617,9 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
             return obj; // Return unchanged
           }
           
-          switch (obj.type) {
-            case 'rectangle':
-              return { ...obj, x: newBounds.x, y: newBounds.y, width: newBounds.width, height: newBounds.height };
-            case 'circle':
-              return { ...obj, x: newBounds.x, y: newBounds.y, radius: newBounds.radius };
-            case 'line':
-              return { ...obj, x: newBounds.x, y: newBounds.y, endX: newBounds.endX, endY: newBounds.endY };
-            case 'text':
-              return { ...obj, x: newBounds.x, y: newBounds.y };
-            default:
-              return obj;
-          }
+          // Only freehand and translation objects support any kind of resizing/moving
+          // For now, just return the object unchanged for other types
+          return obj;
         }
         return obj;
       })
@@ -710,15 +679,6 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
     }));
   }, []);
 
-  // Handle text editing start/finish
-  const handleTextEditStart = useCallback(() => {
-    setIsEditingText(true);
-  }, []);
-
-  const handleTextEditFinish = useCallback(() => {
-    setIsEditingText(false);
-  }, []);
-
   // Brush properties handlers
   const handleStrokeColorChange = useCallback((color: string) => {
     setBrushProperties(prev => ({ ...prev, strokeColor: color }));
@@ -744,14 +704,6 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
         selectedTool={drawingState.selectedTool}
         onToolSelect={handleToolSelect}
       />
-
-      {/* Text Properties Panel - show when text object is selected */}
-      {drawingState.objects.find(obj => obj.selected && obj.type === 'text') && (
-        <TextPropertiesPanel
-          object={drawingState.objects.find(obj => obj.selected && obj.type === 'text') as TextObject}
-          onUpdate={handleObjectUpdate}
-        />
-      )}
 
       {/* Brush Properties Panel - show when freehand tool is selected */}
       {drawingState.selectedTool === 'freehand' && (

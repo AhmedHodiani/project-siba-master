@@ -13,10 +13,6 @@ export interface Bounds {
 }
 
 export type DrawingObjectType = 
-  | 'rectangle' 
-  | 'circle' 
-  | 'line' 
-  | 'text' 
   | 'flashcard'
   | 'translation'
   | 'freehand';
@@ -34,30 +30,6 @@ export interface BaseDrawingObject {
     strokeWidth?: number;
     opacity?: number;
   };
-}
-
-export interface RectangleObject extends BaseDrawingObject {
-  type: 'rectangle';
-  width: number;
-  height: number;
-}
-
-export interface CircleObject extends BaseDrawingObject {
-  type: 'circle';
-  radius: number;
-}
-
-export interface LineObject extends BaseDrawingObject {
-  type: 'line';
-  endX: number;
-  endY: number;
-}
-
-export interface TextObject extends BaseDrawingObject {
-  type: 'text';
-  text: string;
-  fontSize: number;
-  fontFamily?: string;
 }
 
 export interface FlashcardObject extends BaseDrawingObject {
@@ -82,20 +54,12 @@ export interface FreehandObject extends BaseDrawingObject {
 }
 
 export type DrawingObject = 
-  | RectangleObject 
-  | CircleObject 
-  | LineObject 
-  | TextObject 
   | FlashcardObject
   | TranslationObject
   | FreehandObject;
 
 export type ToolType = 
   | 'select' 
-  | 'rectangle' 
-  | 'circle' 
-  | 'line' 
-  | 'text' 
   | 'flashcard'
   | 'translation'
   | 'freehand';
