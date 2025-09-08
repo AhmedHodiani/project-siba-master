@@ -92,6 +92,18 @@ export const DrawingMode: React.FC<DrawingModeProps> = ({ movieId }) => {
     return canvasState.canvases.find(c => c.id === canvasState.activeCanvasId) || null;
   };
 
+  // Handle canvas updates from DrawingCanvas
+  const handleCanvasUpdate = (canvasId: string, updates: Partial<Canvas>) => {
+    setCanvasState(prev => ({
+      ...prev,
+      canvases: prev.canvases.map(canvas =>
+        canvas.id === canvasId
+          ? { ...canvas, ...updates }
+          : canvas
+      )
+    }));
+  };
+
   // Dropdown handlers
   const handleCreateCanvas = () => {
     if (newCanvasTitle.trim()) {
@@ -286,6 +298,8 @@ export const DrawingMode: React.FC<DrawingModeProps> = ({ movieId }) => {
           width={dimensions.width} 
           height={dimensions.height}
           movieId={movieId}
+          currentCanvas={getCurrentCanvas()}
+          onCanvasUpdate={handleCanvasUpdate}
         />
       </div>
     </div>

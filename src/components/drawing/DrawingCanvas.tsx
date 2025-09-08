@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { DrawingObject, ToolType, Point, DrawingState } from '../../lib/types/drawing';
+import { DrawingObject, ToolType, Point, DrawingState, Canvas } from '../../lib/types/drawing';
 import { FlashcardRecord } from '../../lib/types/database';
 import { DrawingUtils } from '../../lib/services/drawing';
 import { DrawingToolbar } from './DrawingToolbar';
@@ -21,9 +21,17 @@ interface DrawingCanvasProps {
   width: number;
   height: number;
   movieId?: string;
+  currentCanvas: Canvas | null;
+  onCanvasUpdate?: (canvasId: string, updates: Partial<Canvas>) => void;
 }
 
-export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, movieId }) => {
+export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ 
+  width, 
+  height, 
+  movieId, 
+  currentCanvas, 
+  onCanvasUpdate 
+}) => {
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -33,6 +41,34 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
     selectedTool: 'select',
     selectedObjectIds: []
   });
+
+  // Load canvas data when currentCanvas changes
+  useEffect(() => {
+    if (currentCanvas) {
+      setDrawingState({
+        objects: currentCanvas.objects || [],
+        selectedTool: 'select',
+        selectedObjectIds: []
+      });
+      
+      if (currentCanvas.viewport) {
+        setViewport(currentCanvas.viewport);
+      } else {
+        setViewport({ x: 0, y: 0, zoom: 1 });
+      }
+    }
+  }, [currentCanvas?.id]);
+
+  // Save canvas changes back to parent
+  useEffect(() => {
+    if (currentCanvas && onCanvasUpdate) {
+      onCanvasUpdate(currentCanvas.id, {
+        objects: drawingState.objects,
+        viewport: viewport,
+        lastModified: new Date()
+      });
+    }
+  }, [drawingState.objects, viewport, currentCanvas?.id, onCanvasUpdate]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawStart, setDrawStart] = useState<Point | null>(null);
   const [isDraggingObject, setIsDraggingObject] = useState(false);

@@ -31,11 +31,13 @@
 /* Canvas Dropdown - Simplified */
 .canvas-dropdown {
   position: relative;
+  z-index: 10000;
 }
 
 .canvas-dropdown-trigger {
   background: #2a2a2a;
   border: 1px solid #555;
+  border-radius: 8px;
   color: #ffffff;
   padding: 10px 16px;
   cursor: pointer;
@@ -80,15 +82,28 @@
 /* Dropdown Menu - Floating Popup */
 .canvas-dropdown-menu {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 4px);
   left: 0;
   background: #1e1e1e;
   border: 1px solid #404040;
+  border-radius: 8px;
   min-width: 320px;
   max-height: 400px;
   overflow-y: auto;
-  z-index: 10000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 99999;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  animation: dropdownSlide 0.15s ease-out;
+}
+
+@keyframes dropdownSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .new-canvas-btn {
@@ -96,6 +111,7 @@
   background: #333333;
   border: none;
   border-bottom: 1px solid #404040;
+  border-radius: 8px 8px 0 0;
   color: #ffffff;
   padding: 12px 16px;
   font-size: 12px;
@@ -152,30 +168,29 @@
   white-space: nowrap;
 }
 
-.canvas-info {
-  font-size: 10px;
-  color: #888888;
-  margin-top: 2px;
-}
 
 /* Input and Buttons - Simplified */
 .canvas-input {
   flex: 1;
   background: #2a2a2a;
   border: 1px solid #555555;
+  border-radius: 4px;
   color: #ffffff;
   padding: 6px 10px;
   font-size: 12px;
   outline: none;
+  transition: border-color 0.15s ease;
 }
 
 .canvas-input:focus {
   border-color: #0078d4;
+  box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.1);
 }
 
 .save-btn, .cancel-btn, .edit-btn, .delete-btn {
   background: transparent;
   border: 1px solid #555555;
+  border-radius: 4px;
   color: #cccccc;
   padding: 4px 8px;
   font-size: 10px;
@@ -191,13 +206,14 @@
 
 .cancel-btn:hover, .edit-btn:hover {
   background: #333333;
+  border-color: #666666;
   color: #ffffff;
 }
 
 .delete-btn:hover {
-  background: #4a1a1a;
-  border-color: #666666;
-  color: #ff6b6b;
+  background: #d13438;
+  border-color: #d13438;
+  color: #ffffff;
 }
 
 /* Empty Message - Simplified */
@@ -215,6 +231,7 @@
 .create-first-btn {
   background: #333333;
   border: 1px solid #555555;
+  border-radius: 4px;
   color: #ffffff;
   padding: 8px 16px;
   font-size: 11px;
