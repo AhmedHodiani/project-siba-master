@@ -8,6 +8,7 @@ import { SelectionHandles } from './SelectionHandles';
 import { FlashcardPickerDialog } from './FlashcardPickerDialog';
 import { ContextMenu } from './ContextMenu';
 import { BrushPropertiesPanel } from './BrushPropertiesPanel';
+import { StickyNotePropertiesPanel } from './StickyNotePropertiesPanel';
 import './DrawingCanvas.css';
 
 interface Viewport {
@@ -47,6 +48,13 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
     strokeColor: '#FFFFFF',
     strokeWidth: 5,
     opacity: 1
+  });
+  
+  // Sticky note properties state
+  const [stickyNoteProperties, setStickyNoteProperties] = useState({
+    paperColor: '#ffd700',
+    fontColor: '#333333',
+    fontSize: 16
   });
   
   // Straight line drawing state
@@ -191,6 +199,28 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
           selectedTool: 'select', // Switch back to select tool
           selectedObjectIds: [newObject.id] // Select the new object
         }));
+      } else if (drawingState.selectedTool === 'sticky-note') {
+        // Create sticky note immediately on click
+        const newObject = DrawingUtils.createObject({
+          type: 'sticky-note',
+          startPoint: worldPoint
+        }) as any; // Cast to access sticky note properties
+
+        // Apply current sticky note properties
+        newObject.paperColor = stickyNoteProperties.paperColor;
+        newObject.fontColor = stickyNoteProperties.fontColor;
+        newObject.fontSize = stickyNoteProperties.fontSize;
+        newObject.style = {
+          ...newObject.style,
+          fill: stickyNoteProperties.paperColor
+        };
+
+        setDrawingState(prev => ({
+          ...prev,
+          objects: [...prev.objects, newObject],
+          selectedTool: 'select', // Switch back to select tool
+          selectedObjectIds: [newObject.id] // Select the new object
+        }));
       } else if (drawingState.selectedTool === 'freehand') {
         // Start freehand drawing immediately - ignore object interactions
         const newObject = DrawingUtils.createObject({
@@ -299,6 +329,36 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
       setContextMenu(null);
     }
   }, [drawingState.objects, viewport, width, height]);
+
+  // Handle object context menu (called from individual widgets)
+  const handleObjectContextMenu = useCallback((e: React.MouseEvent, objectId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Find the object
+    const obj = drawingState.objects.find(o => o.id === objectId);
+    if (!obj) return;
+    
+    // Select the object if not already selected
+    if (!obj.selected) {
+      setDrawingState(prev => ({
+        ...prev,
+        selectedObjectIds: [objectId],
+        objects: prev.objects.map(o => ({
+          ...o,
+          selected: o.id === objectId
+        }))
+      }));
+    }
+
+    // Show context menu at mouse coordinates
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      objectId: objectId,
+      objectType: obj.type
+    });
+  }, [drawingState.objects]);
 
   // Handle mouse move - update drag offset, preview drawing, or move objects
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -692,6 +752,46 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
     setBrushProperties(prev => ({ ...prev, opacity }));
   }, []);
 
+  // Sticky note properties handlers
+  const handlePaperColorChange = useCallback((color: string) => {
+    setStickyNoteProperties(prev => ({ ...prev, paperColor: color }));
+    // Update selected sticky notes
+    setDrawingState(prev => ({
+      ...prev,
+      objects: prev.objects.map(obj => 
+        obj.selected && obj.type === 'sticky-note' 
+          ? { ...obj, paperColor: color, style: { ...obj.style, fill: color } }
+          : obj
+      )
+    }));
+  }, []);
+
+  const handleFontColorChange = useCallback((color: string) => {
+    setStickyNoteProperties(prev => ({ ...prev, fontColor: color }));
+    // Update selected sticky notes
+    setDrawingState(prev => ({
+      ...prev,
+      objects: prev.objects.map(obj => 
+        obj.selected && obj.type === 'sticky-note' 
+          ? { ...obj, fontColor: color }
+          : obj
+      )
+    }));
+  }, []);
+
+  const handleFontSizeChange = useCallback((size: number) => {
+    setStickyNoteProperties(prev => ({ ...prev, fontSize: size }));
+    // Update selected sticky notes
+    setDrawingState(prev => ({
+      ...prev,
+      objects: prev.objects.map(obj => 
+        obj.selected && obj.type === 'sticky-note' 
+          ? { ...obj, fontSize: size }
+          : obj
+      )
+    }));
+  }, []);
+
   // Calculate current transform for real-time visual feedback during drag
   const currentTransform = isDragging 
     ? `translate(${dragOffset.x}px, ${dragOffset.y}px)`
@@ -715,6 +815,21 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
             onStrokeColorChange={handleStrokeColorChange}
             onStrokeWidthChange={handleStrokeWidthChange}
             onOpacityChange={handleOpacityChange}
+          />
+        </div>
+      )}
+
+      {/* Sticky Note Properties Panel - show when sticky note tool is selected or a sticky note is selected */}
+      {(drawingState.selectedTool === 'sticky-note' || 
+        drawingState.objects.some(obj => obj.selected && obj.type === 'sticky-note')) && (
+        <div className="sticky-note-properties-container">
+          <StickyNotePropertiesPanel
+            paperColor={stickyNoteProperties.paperColor}
+            fontColor={stickyNoteProperties.fontColor}
+            fontSize={stickyNoteProperties.fontSize}
+            onPaperColorChange={handlePaperColorChange}
+            onFontColorChange={handleFontColorChange}
+            onFontSizeChange={handleFontSizeChange}
           />
         </div>
       )}
@@ -830,6 +945,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
             onSelect={handleObjectSelect}
             onUpdate={handleObjectUpdate}
             onStartDrag={handleObjectDragStart}
+            onContextMenu={handleObjectContextMenu}
             isDragging={isDraggingObject}
             draggedObjectId={draggedObjectId}
             currentTool={drawingState.selectedTool}

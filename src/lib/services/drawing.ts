@@ -90,6 +90,23 @@ export class DrawingUtils {
           }
         };
 
+      case 'sticky-note':
+        return {
+          ...baseObject,
+          type: 'sticky-note',
+          text: 'New note',
+          width: 200,
+          height: 200,
+          paperColor: '#ffd700', // Default yellow sticky note color
+          fontColor: '#333333',
+          fontSize: 16,
+          style: {
+            ...baseObject.style,
+            fill: '#ffd700',
+            stroke: '#e6c200'
+          }
+        };
+
       default:
         throw new Error(`Unknown object type: ${data.type}`);
     }
@@ -129,6 +146,14 @@ export class DrawingUtils {
           y: freehandMinY - 5,
           width: (freehandMaxX - freehandMinX) + 10,
           height: (freehandMaxY - freehandMinY) + 10
+        };
+
+      case 'sticky-note':
+        return {
+          x: obj.x,
+          y: obj.y,
+          width: obj.width,
+          height: obj.height
         };
 
       default:

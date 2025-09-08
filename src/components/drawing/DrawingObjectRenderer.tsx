@@ -1,7 +1,8 @@
 import React from 'react';
-import { DrawingObject, FlashcardObject, TranslationObject, FreehandObject, ToolType } from '../../lib/types/drawing';
+import { DrawingObject, FlashcardObject, TranslationObject, FreehandObject, StickyNoteObject, ToolType } from '../../lib/types/drawing';
 import { FlashcardWidget } from './FlashcardWidget';
 import { TranslationWidget } from './TranslationWidget';
+import { StickyNoteWidget } from './StickyNoteWidget';
 
 interface DrawingObjectRendererProps {
   object: DrawingObject;
@@ -10,6 +11,7 @@ interface DrawingObjectRendererProps {
   onSelect?: (id: string) => void;
   onUpdate?: (objectId: string, updates: Partial<DrawingObject>) => void;
   onStartDrag?: (objectId: string, startPoint: { x: number; y: number }) => void;
+  onContextMenu?: (event: React.MouseEvent, objectId: string) => void;
   isDragging?: boolean;
   draggedObjectId?: string | null;
   currentTool?: ToolType;
@@ -22,6 +24,7 @@ export const DrawingObjectRenderer: React.FC<DrawingObjectRendererProps> = ({
   onSelect,
   onUpdate,
   onStartDrag,
+  onContextMenu,
   isDragging = false,
   draggedObjectId,
   currentTool
@@ -204,6 +207,70 @@ export const DrawingObjectRenderer: React.FC<DrawingObjectRendererProps> = ({
             fill: 'none', // Ensure freehand is never filled
           }}
         />
+      );
+
+    case 'sticky-note':
+      const stickyNoteObj = object as StickyNoteObject;
+      
+      // Special handling for sticky note mouse events to enable dragging
+      const handleStickyNoteMouseDown = (e: React.MouseEvent) => {
+        // If freehand tool is active, don't intercept the event - let it bubble up for drawing
+        if (currentTool === 'freehand') {
+          return; // Don't stop propagation, let the canvas handle drawing
+        }
+        
+        e.stopPropagation();
+        e.preventDefault();
+        
+        // Select the object first
+        if (onSelect) {
+          onSelect(object.id);
+        }
+        
+        // Get the mouse position relative to the canvas
+        const rect = (e.target as Element).closest('svg')?.getBoundingClientRect();
+        if (rect && viewport && canvasSize && onStartDrag) {
+          const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+          // Convert to world coordinates
+          const worldPoint = {
+            x: viewport.x + (screenPoint.x - canvasSize.width / 2) / viewport.zoom,
+            y: viewport.y + (screenPoint.y - canvasSize.height / 2) / viewport.zoom
+          };
+          
+          // Start dragging
+          onStartDrag(object.id, worldPoint);
+        }
+      };
+
+      const handleStickyNoteUpdate = (id: string, updates: Partial<StickyNoteObject>) => {
+        if (onUpdate) {
+          onUpdate(id, updates as Partial<DrawingObject>);
+        }
+      };
+      
+      return (
+        <foreignObject
+          x={object.x}
+          y={object.y}
+          width={object.width}
+          height={object.height}
+          style={{
+            cursor: object.selected ? 'move' : 'pointer',
+            overflow: 'visible',
+            pointerEvents: currentTool === 'freehand' ? 'none' : 'all'
+          }}
+          onMouseDown={handleStickyNoteMouseDown}
+          onClick={handleClick}
+        >
+          <StickyNoteWidget
+            note={stickyNoteObj}
+            isSelected={object.selected}
+            zoom={viewport?.zoom || 1}
+            onUpdate={handleStickyNoteUpdate}
+            onSelect={() => {}} // Handled by foreignObject
+            onContextMenu={onContextMenu || (() => {})}
+          />
+        </foreignObject>
       );
 
     default:

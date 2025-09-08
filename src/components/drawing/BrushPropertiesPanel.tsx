@@ -19,9 +19,22 @@ export const BrushPropertiesPanel: React.FC<BrushPropertiesPanelProps> = ({
   onOpacityChange,
 }) => {
   const predefinedColors = [
-    '#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF',
-    '#FFFF00', '#FF00FF', '#00FFFF', '#FFA500', '#800080',
-    '#008000', '#800000', '#808080', '#C0C0C0', '#808000'
+    '#FFFFFF', // White - excellent for dark backgrounds
+    '#FFD700', // Gold/Yellow - bright and visible
+    '#FF6B6B', // Coral Red - softer than pure red
+    '#4ECDC4', // Turquoise - calming and visible
+    '#45B7D1', // Sky Blue - professional
+    '#96CEB4', // Mint Green - easy on eyes
+    '#FECA57', // Orange - warm and vibrant
+    '#FF9FF3', // Pink - creative and fun
+    '#54A0FF', // Bright Blue - clear visibility
+    '#5F27CD', // Purple - rich and deep
+    '#00D2D3', // Cyan - modern and fresh
+    '#FF9F43', // Peach - warm and friendly
+    '#C44569', // Rose - elegant
+    '#A3CB38', // Lime Green - energetic
+    '#FD79A8', // Hot Pink - bold
+    '#FDCB6E'  // Light Orange - warm tone
   ];
 
   const strokeWidths = [1, 2, 3, 4, 5, 8, 10, 12, 15, 20];
@@ -35,12 +48,6 @@ export const BrushPropertiesPanel: React.FC<BrushPropertiesPanelProps> = ({
       <div className="property-section">
         <label className="property-label">Color</label>
         <div className="color-picker-section">
-          <input
-            type="color"
-            value={strokeColor}
-            onChange={(e) => onStrokeColorChange(e.target.value)}
-            className="color-input"
-          />
           <div className="color-presets">
             {predefinedColors.map((color) => (
               <button
@@ -52,47 +59,39 @@ export const BrushPropertiesPanel: React.FC<BrushPropertiesPanelProps> = ({
               />
             ))}
           </div>
-        </div>
-      </div>
-
-      <div className="property-section">
-        <label className="property-label">Thickness</label>
-        <div className="thickness-section">
-          <input
-            type="range"
-            min="1"
-            max="20"
-            value={strokeWidth}
-            onChange={(e) => onStrokeWidthChange(Number(e.target.value))}
-            className="thickness-slider"
-          />
-          <div className="thickness-value">{strokeWidth}px</div>
-          <div className="thickness-presets">
-            {strokeWidths.map((width) => (
-              <button
-                key={width}
-                className={`thickness-preset ${strokeWidth === width ? 'active' : ''}`}
-                onClick={() => onStrokeWidthChange(width)}
-              >
-                <div 
-                  className="thickness-preview"
-                  style={{ 
-                    width: `${Math.min(width * 2, 20)}px`,
-                    height: `${Math.min(width, 8)}px`,
-                    backgroundColor: strokeColor
-                  }}
-                />
-                {width}px
-              </button>
-            ))}
+          <div className="custom-color-section">
+            <label htmlFor="custom-stroke-color">Custom:</label>
+            <input
+              id="custom-stroke-color"
+              type="color"
+              value={strokeColor}
+              onChange={(e) => onStrokeColorChange(e.target.value)}
+              className="color-input"
+            />
           </div>
         </div>
       </div>
 
       <div className="property-section">
-        <label className="property-label">Opacity</label>
         <div className="opacity-section">
+          <label htmlFor="opacity-slider">Thickness:</label>
           <input
+            type="range"
+            min="1"
+            max="50"
+            value={strokeWidth}
+            onChange={(e) => onStrokeWidthChange(Number(e.target.value))}
+            className="thickness-slider"
+          />
+
+          <span className="opacity-value">{strokeWidth}px</span>
+        </div>
+
+        <br />
+        <div className="opacity-section">
+          <label htmlFor="opacity-slider">Opacity:</label>
+          <input
+            id="opacity-slider"
             type="range"
             min="0.1"
             max="1"
@@ -101,7 +100,7 @@ export const BrushPropertiesPanel: React.FC<BrushPropertiesPanelProps> = ({
             onChange={(e) => onOpacityChange(Number(e.target.value))}
             className="opacity-slider"
           />
-          <div className="opacity-value">{Math.round(opacity * 100)}%</div>
+          <span className="opacity-value">{Math.round(opacity * 100)}%</span>
         </div>
       </div>
 
@@ -109,7 +108,7 @@ export const BrushPropertiesPanel: React.FC<BrushPropertiesPanelProps> = ({
         <label className="property-label">Preview</label>
         <svg width="100%" height="40" className="preview-canvas">
           <line
-            x1="10"
+            x1="20"
             y1="20"
             x2="90%"
             y2="20"

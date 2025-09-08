@@ -84,3 +84,17 @@
     opacity: 1;
   }
 }
+
+/* Sticky Note Properties Panel Positioning */
+.sticky-note-properties-container {
+  position: absolute;
+  top: 20px;
+  right: 20px; /* Keep it on the right side */
+  z-index: 20;
+  animation: slideInRight 0.3s ease-out;
+}
+
+/* When both panels are visible, adjust positioning */
+.brush-properties-container ~ .sticky-note-properties-container {
+  top: 380px; /* Move sticky note panel below brush panel when both are visible */
+}

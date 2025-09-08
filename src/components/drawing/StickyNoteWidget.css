@@ -1,0 +1,198 @@
+/* Import handwritten font */
+@import url('https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&display=swap');
+
+.sticky-note-widget {
+  position: absolute;
+  cursor: pointer;
+  user-select: none;
+  border: 2px solid;
+  border-radius: 0;
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.sticky-note-widget:hover {
+  transform: translate(var(--x), var(--y)) scale(1.02);
+}
+
+.sticky-note-widget.selected {
+  border-width: 3px;
+}
+
+.sticky-note-paper {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  padding: 15px;
+  box-sizing: border-box;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.05) 100%
+  );
+}
+
+/* Folded corner effect like real sticky notes */
+.sticky-note-corner {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 20px 20px 0;
+  border-color: transparent #e0e0e0 transparent transparent;
+  z-index: 1;
+}
+
+.sticky-note-corner::before {
+  content: '';
+  position: absolute;
+  top: 1px;
+  right: -19px;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 18px 18px 0;
+  border-color: transparent rgba(0, 0, 0, 0.1) transparent transparent;
+}
+
+.sticky-note-text {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-start;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+  line-height: 1.4;
+  font-weight: 400;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  padding-right: 25px; /* Space for folded corner */
+}
+
+.sticky-note-textarea {
+  width: 100%;
+  height: 100%;
+  border: none;
+  outline: none;
+  resize: none;
+  line-height: 1.4;
+  font-weight: 400;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  padding-right: 25px; /* Space for folded corner */
+  box-sizing: border-box;
+}
+
+.sticky-note-textarea::placeholder {
+  color: rgba(0, 0, 0, 0.4);
+  font-style: italic;
+}
+
+/* Resize handles */
+.resize-handle {
+  position: absolute;
+  background: #007acc;
+  border: 1px solid #fff;
+  border-radius: 2px;
+  z-index: 10;
+}
+
+.resize-handle-se {
+  bottom: -4px;
+  right: -4px;
+  width: 8px;
+  height: 8px;
+  cursor: se-resize;
+}
+
+.resize-handle-s {
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  cursor: s-resize;
+}
+
+.resize-handle-e {
+  right: -4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  cursor: e-resize;
+}
+
+/* Hover effects for resize handles */
+.resize-handle:hover {
+  background: #005999;
+  transform: scale(1.2);
+}
+
+.resize-handle-s:hover {
+  transform: translateX(-50%) scale(1.2);
+}
+
+.resize-handle-e:hover {
+  transform: translateY(-50%) scale(1.2);
+}
+
+/* Paper texture effect */
+.sticky-note-paper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    radial-gradient(circle at 1px 1px, rgba(0,0,0,0.02) 1px, transparent 0);
+  background-size: 20px 20px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Make sure text is above texture */
+.sticky-note-text,
+.sticky-note-textarea {
+  position: relative;
+  z-index: 1;
+}
+
+/* Common sticky note colors */
+.sticky-note-widget[data-color="yellow"] {
+  background-color: #ffd700;
+}
+
+.sticky-note-widget[data-color="pink"] {
+  background-color: #ffb3d9;
+}
+
+.sticky-note-widget[data-color="blue"] {
+  background-color: #87ceeb;
+}
+
+.sticky-note-widget[data-color="green"] {
+  background-color: #98fb98;
+}
+
+.sticky-note-widget[data-color="orange"] {
+  background-color: #ffa500;
+}
+
+/* Animation for placement */
+.sticky-note-widget.placing {
+  animation: stickyNotePlacement 0.3s ease-out;
+}
+
+@keyframes stickyNotePlacement {
+  0% {
+    transform: translate(var(--x), var(--y)) scale(0.8) rotate(-5deg);
+    opacity: 0.7;
+  }
+  100% {
+    transform: translate(var(--x), var(--y)) scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}

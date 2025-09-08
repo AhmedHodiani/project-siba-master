@@ -15,7 +15,8 @@ export interface Bounds {
 export type DrawingObjectType = 
   | 'flashcard'
   | 'translation'
-  | 'freehand';
+  | 'freehand'
+  | 'sticky-note';
 
 export interface BaseDrawingObject {
   id: string;
@@ -53,16 +54,28 @@ export interface FreehandObject extends BaseDrawingObject {
   points: Point[];
 }
 
+export interface StickyNoteObject extends BaseDrawingObject {
+  type: 'sticky-note';
+  text: string;
+  width: number;
+  height: number;
+  paperColor: string;
+  fontColor: string;
+  fontSize: number;
+}
+
 export type DrawingObject = 
   | FlashcardObject
   | TranslationObject
-  | FreehandObject;
+  | FreehandObject
+  | StickyNoteObject;
 
 export type ToolType = 
   | 'select' 
   | 'flashcard'
   | 'translation'
-  | 'freehand';
+  | 'freehand'
+  | 'sticky-note';
 
 export interface DrawingState {
   objects: DrawingObject[];
