@@ -6,7 +6,7 @@
   user-select: none;
   border: 2px solid;
   border-radius: 0;
-  transition: all 0.2s ease;
+  /* transition: all 0.05s ease; */
   overflow: hidden;
   /* Cut out the top-right corner from the entire widget */
   clip-path: polygon(0% 0%, calc(100% - 35px) 0%, 100% 35px, 100% 100%, 0% 100%);
@@ -102,7 +102,7 @@
   border: 2px solid #fff;
   border-radius: 3px;
   z-index: 1000; /* Higher z-index to ensure visibility */
-  transition: all 0.2s ease;
+  /* transition: all 0.05s ease; */
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   pointer-events: all !important; /* Force mouse events to work */
   width: 20px;
