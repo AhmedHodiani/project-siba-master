@@ -8,8 +8,11 @@ interface StickyNoteWidgetProps {
   zoom: number;
   onUpdate: (id: string, updates: Partial<StickyNoteObject>) => void;
   onSelect: (id: string) => void;
-  onContextMenu: (event: React.MouseEvent, objectId: string) => void;
+  onContextMenu: (event: React.MouseEvent, id: string) => void;
+  onStartDrag?: (e: React.MouseEvent, id: string) => void;
 }
+
+type ResizeHandle = 'se' | 's' | 'e' | null;
 
 export const StickyNoteWidget: React.FC<StickyNoteWidgetProps> = ({
   note,
@@ -17,10 +20,14 @@ export const StickyNoteWidget: React.FC<StickyNoteWidgetProps> = ({
   zoom,
   onUpdate,
   onSelect,
-  onContextMenu
+  onContextMenu,
+  onStartDrag
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(note.text);
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeHandle, setResizeHandle] = useState<ResizeHandle>(null);
+  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -59,9 +66,89 @@ export const StickyNoteWidget: React.FC<StickyNoteWidgetProps> = ({
     }
   };
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleMouseDown = (e: React.MouseEvent) => {
+    console.log('Widget mousedown, target:', e.target);
+    // Check if this is a resize handle click
+    const target = e.target as HTMLElement;
+    if (target.classList.contains('resize-handle')) {
+      console.log('Resize handle detected in widget');
+      return; // Let resize handles handle their own events
+    }
+    
+    if (!isEditing && !isResizing) {
+      // Select the note first
+      onSelect(note.id);
+      
+      // If we have a drag handler, prepare for dragging
+      if (onStartDrag) {
+        onStartDrag(e, note.id);
+      }
+    }
+  };
+
+  const handleResizeStart = (e: React.MouseEvent, handle: ResizeHandle) => {
+    console.log('=== RESIZE START ===', handle, e.target);
+    e.preventDefault();
     e.stopPropagation();
-    onSelect(note.id);
+    
+    setIsResizing(true);
+    setResizeHandle(handle);
+    
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startWidth = note.width;
+    const startHeight = note.height;
+    
+    const handleResizeMove = (moveEvent: MouseEvent) => {
+      console.log('Resize move', handle);
+      
+      // Calculate delta in screen coordinates, then adjust for zoom
+      const deltaX = (moveEvent.clientX - startX) / zoom;
+      const deltaY = (moveEvent.clientY - startY) / zoom;
+
+      let newWidth = startWidth;
+      let newHeight = startHeight;
+
+      // Calculate new dimensions based on handle
+      if (handle === 'se') {
+        newWidth = Math.max(100, startWidth + deltaX);
+        newHeight = Math.max(100, startHeight + deltaY);
+      } else if (handle === 's') {
+        newHeight = Math.max(100, startHeight + deltaY);
+      } else if (handle === 'e') {
+        newWidth = Math.max(100, startWidth + deltaX);
+      }
+
+      // Update the note dimensions
+      onUpdate(note.id, {
+        width: newWidth,
+        height: newHeight
+      });
+    };
+
+    const handleResizeEnd = () => {
+      console.log('Resize end');
+      setIsResizing(false);
+      setResizeHandle(null);
+      document.removeEventListener('mousemove', handleResizeMove);
+      document.removeEventListener('mouseup', handleResizeEnd);
+    };
+
+    document.addEventListener('mousemove', handleResizeMove);
+    document.addEventListener('mouseup', handleResizeEnd);
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    // Check if this is a resize handle click
+    const target = e.target as HTMLElement;
+    if (target.classList.contains('resize-handle')) {
+      return; // Let resize handles handle their own events
+    }
+    
+    if (!isEditing && !isResizing) {
+      e.stopPropagation();
+      onSelect(note.id);
+    }
   };
 
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -72,9 +159,8 @@ export const StickyNoteWidget: React.FC<StickyNoteWidgetProps> = ({
 
   return (
     <div
-      className={`sticky-note-widget ${isSelected ? 'selected' : ''}`}
+      className={`sticky-note-widget ${isSelected ? 'selected' : ''} ${isResizing ? 'resizing' : ''}`}
       style={{
-        transform: `translate(${note.x}px, ${note.y}px)`,
         width: `${note.width}px`,
         height: `${note.height}px`,
         backgroundColor: note.paperColor,
@@ -82,6 +168,7 @@ export const StickyNoteWidget: React.FC<StickyNoteWidgetProps> = ({
         boxShadow: isSelected ? '0 0 10px rgba(0, 122, 204, 0.5)' : '2px 2px 8px rgba(0, 0, 0, 0.2)',
         zIndex: note.zIndex
       }}
+      onMouseDown={handleMouseDown}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
@@ -127,9 +214,18 @@ export const StickyNoteWidget: React.FC<StickyNoteWidgetProps> = ({
         {/* Resize handles when selected */}
         {isSelected && !isEditing && (
           <>
-            <div className="resize-handle resize-handle-se" />
-            <div className="resize-handle resize-handle-s" />
-            <div className="resize-handle resize-handle-e" />
+            <div 
+              className="resize-handle resize-handle-se" 
+              onMouseDown={(e) => handleResizeStart(e, 'se')}
+            />
+            <div 
+              className="resize-handle resize-handle-s" 
+              onMouseDown={(e) => handleResizeStart(e, 's')}
+            />
+            <div 
+              className="resize-handle resize-handle-e" 
+              onMouseDown={(e) => handleResizeStart(e, 'e')}
+            />
           </>
         )}
       </div>

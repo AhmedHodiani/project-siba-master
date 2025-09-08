@@ -466,8 +466,17 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (drawingState.selectedObjectIds.length > 0) {
+      // Only allow Delete key (not Backspace) and only when not editing text
+      if (e.key === 'Delete') {
+        // Check if user is editing text (input, textarea, or contenteditable)
+        const activeElement = document.activeElement;
+        const isEditingText = activeElement && (
+          activeElement.tagName === 'INPUT' ||
+          activeElement.tagName === 'TEXTAREA' ||
+          activeElement.getAttribute('contenteditable') === 'true'
+        );
+        
+        if (!isEditingText && drawingState.selectedObjectIds.length > 0) {
           e.preventDefault();
           // Delete the first selected object
           const objectToDelete = drawingState.selectedObjectIds[0];

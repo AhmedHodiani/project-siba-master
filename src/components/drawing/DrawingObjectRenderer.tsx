@@ -214,6 +214,15 @@ export const DrawingObjectRenderer: React.FC<DrawingObjectRendererProps> = ({
       
       // Special handling for sticky note mouse events to enable dragging
       const handleStickyNoteMouseDown = (e: React.MouseEvent) => {
+        console.log('Foreign object mousedown, target:', e.target);
+        // Check if this is a resize handle click
+        const target = e.target as HTMLElement;
+        if (target.classList.contains('resize-handle')) {
+          console.log('Resize handle detected, not interfering');
+          // Don't stop propagation for resize handles
+          return;
+        }
+        
         // If freehand tool is active, don't intercept the event - let it bubble up for drawing
         if (currentTool === 'freehand') {
           return; // Don't stop propagation, let the canvas handle drawing
@@ -259,7 +268,6 @@ export const DrawingObjectRenderer: React.FC<DrawingObjectRendererProps> = ({
             overflow: 'visible',
             pointerEvents: currentTool === 'freehand' ? 'none' : 'all'
           }}
-          onMouseDown={handleStickyNoteMouseDown}
           onClick={handleClick}
         >
           <StickyNoteWidget
@@ -269,6 +277,22 @@ export const DrawingObjectRenderer: React.FC<DrawingObjectRendererProps> = ({
             onUpdate={handleStickyNoteUpdate}
             onSelect={() => {}} // Handled by foreignObject
             onContextMenu={onContextMenu || (() => {})}
+            onStartDrag={(e, id) => {
+              if (onStartDrag && viewport && canvasSize) {
+                // Get the mouse position relative to the canvas
+                const rect = (e.target as Element).closest('svg')?.getBoundingClientRect();
+                if (rect) {
+                  const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+                  // Convert to world coordinates using proper viewport transformation
+                  const worldPoint = {
+                    x: viewport.x + (screenPoint.x - canvasSize.width / 2) / viewport.zoom,
+                    y: viewport.y + (screenPoint.y - canvasSize.height / 2) / viewport.zoom
+                  };
+                  
+                  onStartDrag(id, worldPoint);
+                }
+              }
+            }}
           />
         </foreignObject>
       );

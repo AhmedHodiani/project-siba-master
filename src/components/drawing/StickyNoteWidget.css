@@ -2,13 +2,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&display=swap');
 
 .sticky-note-widget {
-  position: absolute;
   cursor: pointer;
   user-select: none;
   border: 2px solid;
   border-radius: 0;
   transition: all 0.2s ease;
   overflow: hidden;
+  /* Cut out the top-right corner from the entire widget */
+  clip-path: polygon(0% 0%, calc(100% - 35px) 0%, 100% 35px, 100% 100%, 0% 100%);
 }
 
 .sticky-note-widget:hover {
@@ -17,6 +18,11 @@
 
 .sticky-note-widget.selected {
   border-width: 3px;
+}
+
+.sticky-note-widget.resizing {
+  border-color: #007acc;
+  box-shadow: 0 0 15px rgba(0, 122, 204, 0.6);
 }
 
 .sticky-note-paper {
@@ -40,7 +46,7 @@
   width: 0;
   height: 0;
   border-style: solid;
-  border-width: 0 20px 20px 0;
+  border-width: 0 35px 35px 0;
   border-color: transparent #e0e0e0 transparent transparent;
   z-index: 1;
 }
@@ -48,13 +54,13 @@
 .sticky-note-corner::before {
   content: '';
   position: absolute;
-  top: 1px;
-  right: -19px;
+  top: 0px;
+  right: -35px;
   width: 0;
   height: 0;
   border-style: solid;
-  border-width: 0 18px 18px 0;
-  border-color: transparent rgba(0, 0, 0, 0.1) transparent transparent;
+  border-width: 0 35px 35px 0;
+  border-color: transparent rgb(255 255 255 / 0%) #0000002b transparent;
 }
 
 .sticky-note-text {
@@ -93,34 +99,33 @@
 .resize-handle {
   position: absolute;
   background: #007acc;
-  border: 1px solid #fff;
-  border-radius: 2px;
-  z-index: 10;
+  border: 2px solid #fff;
+  border-radius: 3px;
+  z-index: 1000; /* Higher z-index to ensure visibility */
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  pointer-events: all !important; /* Force mouse events to work */
+  width: 20px;
+  height: 20px;
 }
 
 .resize-handle-se {
-  bottom: -4px;
-  right: -4px;
-  width: 8px;
-  height: 8px;
+  bottom: -10px;
+  right: -10px;
   cursor: se-resize;
 }
 
 .resize-handle-s {
-  bottom: -4px;
+  bottom: -10px;
   left: 50%;
   transform: translateX(-50%);
-  width: 8px;
-  height: 8px;
   cursor: s-resize;
 }
 
 .resize-handle-e {
-  right: -4px;
+  right: -10px;
   top: 50%;
   transform: translateY(-50%);
-  width: 8px;
-  height: 8px;
   cursor: e-resize;
 }
 
@@ -128,6 +133,7 @@
 .resize-handle:hover {
   background: #005999;
   transform: scale(1.2);
+  box-shadow: 0 2px 8px rgba(0, 89, 153, 0.4);
 }
 
 .resize-handle-s:hover {
