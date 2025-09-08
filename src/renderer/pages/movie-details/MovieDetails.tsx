@@ -19,6 +19,7 @@ import {
   MarkdownEditor,
   DrawingMode
 } from '../../../components/ui';
+import './MovieDetails.css';
 import { MovieRecord, FlashcardRecord } from '../../../lib/types/database';
 import {
   SubtitleCue,
@@ -34,6 +35,9 @@ export const MovieDetails: React.FC = () => {
   const videoPlayerRef = useRef<VideoPlayerRef>(null);
   const [movie, setMovie] = useState<MovieRecord | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Add ref for subtitles container
+  const subtitlesContainerRef = useRef<HTMLDivElement>(null);
 
   // Helper function to format time in hh:mm:ss
   const formatTime = (seconds: number): string => {
@@ -161,7 +165,7 @@ export const MovieDetails: React.FC = () => {
                   content: [
                     {
                       type: 'column',
-                      width: 70,
+                      width: 80,
                       content: [
                         
                             {
@@ -171,18 +175,12 @@ export const MovieDetails: React.FC = () => {
                               title: 'Subtitles',
                               height: 20,
                             },
-                            {
-                              type: 'component',
-                              componentType: 'react-component',
-                              componentState: { componentId: 'flash-card-actions' },
-                              title: 'Flash Card Actions',
-                              height: 20,
-                            },
+                 
                       ]
                     },
                     {
                       type: 'column',
-                      width: 70,
+                      width: 60,
                       content: [
                             {
                               type: 'component',
@@ -204,11 +202,16 @@ export const MovieDetails: React.FC = () => {
                 {
                   type: 'component',
                   componentType: 'react-component',
+                  componentState: { componentId: 'flash-card-actions' },
+                  title: 'Flash Card Actions',
+                  height: 6,
+                },
+                {
+                  type: 'component',
+                  componentType: 'react-component',
                   componentState: { componentId: 'ai-chat' },
                   title: 'AI Chat',
                 },
-
-
               ],
             },
 
@@ -386,6 +389,48 @@ export const MovieDetails: React.FC = () => {
       setCurrentSubtitle(subtitle);
     }
   }, [subtitles, currentTime, subtitleDelay, isRepeating, repeatingSubtitle]);
+
+  // Auto-scroll to current subtitle
+  useEffect(() => {
+    if (!subtitlesContainerRef.current || !currentSubtitle || subtitles.length === 0) {
+      return;
+    }
+
+    const container = subtitlesContainerRef.current;
+    const currentIndex = subtitles.findIndex(sub => sub === currentSubtitle);
+    
+    if (currentIndex < 0) return;
+
+    // Use requestAnimationFrame to ensure DOM is ready
+    requestAnimationFrame(() => {
+      const subtitleElements = container.children;
+      const currentElement = subtitleElements[currentIndex] as HTMLElement;
+      
+      if (currentElement) {
+        // Get container and element dimensions
+        const containerHeight = container.clientHeight;
+        const containerScrollTop = container.scrollTop;
+        const elementTop = currentElement.offsetTop;
+        const elementHeight = currentElement.offsetHeight;
+        
+        // Calculate if element is visible
+        const elementBottom = elementTop + elementHeight;
+        const viewportTop = containerScrollTop;
+        const viewportBottom = containerScrollTop + containerHeight;
+        
+        // Only scroll if element is not fully visible
+        if (elementTop < viewportTop || elementBottom > viewportBottom) {
+          // Center the element in the container
+          const scrollTop = elementTop - (containerHeight / 2) + (elementHeight / 2);
+          
+          container.scrollTo({
+            top: Math.max(0, scrollTop),
+            behavior: 'smooth'
+          });
+        }
+      }
+    });
+  }, [currentSubtitle, subtitles]);
 
   // Debounced effect to save subtitle delay to database
   useEffect(() => {
@@ -998,70 +1043,219 @@ export const MovieDetails: React.FC = () => {
             id="subtitles"
             style={{
               backgroundColor: '#2d2611ff',
-              padding: '16px',
               color: '#e0e0e0',
               display: 'flex',
               flexDirection: 'column',
+              width: '100%',
               height: '100%',
+              padding: '0', // Remove padding from outer container
             }}
           >
-            {/* Current Subtitle Display */}
-            {subtitlePosition === 'below' && currentSubtitle && (
-              <div
-                style={{
-                  marginBottom: '16px',
-                  position: 'relative',
-                  zIndex: 30,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: `${subtitleSize}px`,
-                    lineHeight: '1.4',
-                    backgroundColor: 'rgba(0,0,0,0.8)',
-                    padding: '12px',
-                    borderRadius: '4px',
-                    border: '1px solid #444',
-                    userSelect: 'text',
-                    cursor: 'text',
-                    transition: 'background-color 0.2s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.9)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.8)';
-                  }}
-                >
-                  {currentSubtitle.text}
-                </div>
-              </div>
-            )}
-
-            {/* Repeat Button */}
-            {subtitles.length > 0 && currentSubtitle && (
-              <div style={{ marginBottom: '16px' }}>
-                <Button
-                  onClick={toggleRepeat}
-                  variant={isRepeating ? "primary" : "secondary"}
-                  size="small"
-                >
-                  <span>Repeat</span>
-                  <span style={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    borderRadius: '4px',
-                    padding: '2px 6px',
-                    marginLeft: '4px',
-                    fontSize: '0.9em',
-                  }}>
-                    {isRepeating ? 'On' : 'Off'}
-                  </span>
-                </Button>
-              </div>
-            )}
-
             {/* Info message when subtitles are onscreen */}
             {subtitlePosition === 'onscreen' && (
+              <div
+                style={{
+                  textAlign: 'center',
+                  color: '#888',
+                  fontStyle: 'italic',
+                  padding: '16px',
+                }}
+              >
+                Subtitles are displayed on video. Change position to "Below
+                Video" in subtitle settings to show here.
+              </div>
+            )}
+
+            {/* All Subtitles List */}
+            {subtitlePosition === 'below' && subtitles.length > 0 && (
+              <div
+                ref={subtitlesContainerRef}
+                style={{
+                  flex: 1,
+                  overflowY: 'auto',
+                  overflowX: 'hidden',
+                  padding: '16px', // Move padding to inner container
+                  height: '100%',
+                  boxSizing: 'border-box',
+                }}
+                className="subtitles-scroll-container"
+              >
+                {subtitles.map((subtitle, index) => {
+                  const isCurrent = currentSubtitle === subtitle;
+                  const isSubtitleRepeating = isRepeating && repeatingSubtitle === subtitle;
+                  const adjustedTime = currentTime + subtitleDelay;
+                  const isPast = adjustedTime > subtitle.endTime;
+                  const isFuture = adjustedTime < subtitle.startTime;
+                  
+                  return (
+                    <div
+                      key={index}
+                      style={{
+                        marginBottom: '8px',
+                        padding: '12px',
+                        backgroundColor: isCurrent 
+                          ? 'rgba(255, 193, 7, 0.2)' 
+                          : isPast 
+                            ? 'rgba(0,0,0,0.4)' 
+                            : 'rgba(0,0,0,0.6)',
+                        border: isCurrent 
+                          ? '2px solid #ffc107' 
+                          : isSubtitleRepeating 
+                            ? '2px solid #007acc'
+                            : '1px solid #444',
+                        borderRadius: '6px',
+                        transition: 'all 0.3s ease',
+                        opacity: isPast ? 0.6 : isFuture ? 0.8 : 1,
+                        cursor: 'pointer',
+                        position: 'relative',
+                      }}
+                      onClick={() => {
+                        // Turn off repeat if it's currently active and we're clicking a different subtitle
+                        if (isRepeating && repeatingSubtitle !== subtitle) {
+                          setIsRepeating(false);
+                          setRepeatingSubtitle(null);
+                        }
+                        
+                        // Seek to this subtitle
+                        if (videoPlayerRef.current) {
+                          const seekTime = subtitle.startTime - subtitleDelay;
+                          videoPlayerRef.current.seekTo(seekTime);
+                        }
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isCurrent) {
+                          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isCurrent) {
+                          e.currentTarget.style.backgroundColor = isPast 
+                            ? 'rgba(0,0,0,0.4)' 
+                            : 'rgba(0,0,0,0.6)';
+                        }
+                      }}
+                    >
+                      {/* Subtitle time and repeat button */}
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '8px',
+                        fontSize: '12px',
+                        color: '#888'
+                      }}>
+                        <span>
+                          {Math.floor(subtitle.startTime / 60).toString().padStart(2, '0')}:
+                          {Math.floor(subtitle.startTime % 60).toString().padStart(2, '0')} - 
+                          {Math.floor(subtitle.endTime / 60).toString().padStart(2, '0')}:
+                          {Math.floor(subtitle.endTime % 60).toString().padStart(2, '0')}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent seeking when clicking repeat button
+                            
+                            if (isRepeating) {
+                              // Turn off repeat
+                              setIsRepeating(false);
+                              setRepeatingSubtitle(null);
+                            } else {
+                              // Turn on repeat for this subtitle
+                              setIsRepeating(true);
+                              setRepeatingSubtitle(subtitle);
+                              // Seek to start of this subtitle
+                              if (videoPlayerRef.current) {
+                                const seekTime = subtitle.startTime - subtitleDelay;
+                                videoPlayerRef.current.seekTo(seekTime);
+                              }
+                            }
+                          }}
+                          style={{
+                            background: isSubtitleRepeating 
+                              ? 'linear-gradient(135deg, #ccad00ff, #ccad00ff)' 
+                              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))',
+                            border: isSubtitleRepeating ? '1px solid #ccad00ff' : '1px solid rgba(255, 255, 255, 0.2)',
+                            borderRadius: '6px',
+                            color: isSubtitleRepeating ? '#ffffff' : '#bbb',
+                            padding: '6px 10px',
+                            fontSize: '11px',
+                            fontWeight: '500',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease',
+                            boxShadow: isSubtitleRepeating 
+                              ? '0 2px 8px rgba(0, 122, 204, 0.3)' 
+                              : '0 1px 3px rgba(0, 0, 0, 0.2)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            minWidth: '60px',
+                            justifyContent: 'center',
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isSubtitleRepeating) {
+                              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1))';
+                              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                              e.currentTarget.style.transform = 'translateY(-1px)';
+                            } else {
+                              e.currentTarget.style.boxShadow = '0 4px 12px rgba(204, 163, 0, 0.4)';
+                              e.currentTarget.style.transform = 'translateY(-1px)';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isSubtitleRepeating) {
+                              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))';
+                              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                              e.currentTarget.style.transform = 'translateY(0)';
+                            } else {
+                              e.currentTarget.style.boxShadow = '0 2px 8px rgba(204, 180, 0, 0.3)';
+                              e.currentTarget.style.transform = 'translateY(0)';
+                            }
+                          }}
+                          title={isSubtitleRepeating ? 'Stop repeating this subtitle' : 'Repeat this subtitle'}
+                        >
+                          <span style={{ fontSize: '12px' }}>
+                            {isSubtitleRepeating ? '↻' : '↻'}
+                          </span>
+                          <span style={{ fontSize: '10px', fontWeight: '600' }}>
+                            {isSubtitleRepeating ? 'ON' : 'OFF'}
+                          </span>
+                        </button>
+                      </div>
+                      
+                      {/* Subtitle text */}
+                      <div
+                        style={{
+                          fontSize: isCurrent ? `${subtitleSize}px` : `${Math.max(14, subtitleSize - 4)}px`,
+                          lineHeight: '1.4',
+                          userSelect: 'text',
+                          fontWeight: isCurrent ? 'bold' : 'normal',
+                        }}
+                      >
+                        {subtitle.text}
+                      </div>
+                      
+                      {/* Current indicator */}
+                      {isCurrent && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            left: '-4px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            width: '4px',
+                            height: '60%',
+                            backgroundColor: '#ffc107',
+                            borderRadius: '2px',
+                          }}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* No subtitles message */}
+            {subtitles.length === 0 && (
               <div
                 style={{
                   textAlign: 'center',
@@ -1070,12 +1264,17 @@ export const MovieDetails: React.FC = () => {
                   padding: '12px',
                 }}
               >
-                Subtitles are displayed on video. Change position to "Below
-                Video" in subtitle settings to show here.
+                No subtitles loaded
               </div>
             )}
           </div>
-          <div id="translations" style={{ backgroundColor: '#181818ff' }}>
+          <div id="translations" style={{ 
+            backgroundColor: '#181818ff',
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
             <IframeTranslationWidget
               text={currentContextTranslationText}
               sourceLanguage="de"
@@ -1111,7 +1310,7 @@ export const MovieDetails: React.FC = () => {
               </div>
             )}
           </div>
-          <div id="ai-chat" style={{ backgroundColor: '#181818ff', height: '100%' }}>
+          <div id="ai-chat" style={{ backgroundColor: '#041620ff', height: '100%' }}>
             <AiChatPanel 
               currentSubtitle={currentContextSubtitle}
               onSelectTranslation={(translation) => {
@@ -1121,13 +1320,15 @@ export const MovieDetails: React.FC = () => {
               onInputFocusChange={setIsChatInputFocused}
             />
           </div>
-          <div id="flash-card-actions" style={{ backgroundColor: '#181818ff' }}>
+          <div id="flash-card-actions" style={{ backgroundColor: '#1f1010ff' }}>
             <div style={{ padding: '16px' }}>
-              <span style={{ color: '#888', display: 'block', marginBottom: '8px' }}>
+              {/* <span style={{ color: '#888', display: 'block', marginBottom: '8px' }}>
                 Create flash cards from subtitles and review them with free spaced repetition scheduling (FSRS) algorithms.
-              </span>
-              <Button onClick={handleAddFlashcard}>Add Flash Card</Button>
-              <Button onClick={() => setShowViewFlashcardsDialog(true)}>View all Flash Cards</Button>
+              </span> */}
+              <div style={{ display: 'flex', flexDirection: 'row', gap: '10px' }}>
+              <Button size='large' onClick={handleAddFlashcard}>Add Flash Card</Button>
+              <Button size='large' onClick={() => setShowViewFlashcardsDialog(true)}>View all Flash Cards</Button>
+              </div>
             </div>
           </div>
           

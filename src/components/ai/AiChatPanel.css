@@ -278,7 +278,7 @@
 
 .chat-input-area {
   border-top: 1px solid #333;
-  background: #1f1f1f;
+  background: #0a1e2d;
 }
 
 .quick-translate {
@@ -309,7 +309,7 @@
 
 .chat-input textarea {
   flex: 1;
-  background: #2a2a2a;
+  background: #212d38;
   color: #e0e0e0;
   border: 1px solid #444;
   padding: 8px;
