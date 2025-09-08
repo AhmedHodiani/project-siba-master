@@ -316,7 +316,35 @@ app.on('window-all-closed', () => {
 });
 
 
-function startPocketBase() {
+
+
+const pbData = path.join(app.getPath("userData"), "pb_data");
+const pbMigrationsSrc = path.join(process.resourcesPath, "assets/pocketbase/pb_migrations");
+const pbMigrationsDest = path.join(pbData, "pb_migrations");
+
+async function copyNewMigrations() {
+  await fs.mkdir(pbMigrationsDest, { recursive: true });
+
+  const files = await fs.readdir(pbMigrationsSrc);
+
+  for (const file of files) {
+    const srcFile = path.join(pbMigrationsSrc, file);
+    const destFile = path.join(pbMigrationsDest, file);
+
+    try {
+      await fs.access(destFile);
+      // File exists, skip
+    } catch {
+      // File does not exist, copy it
+      await fs.copyFile(srcFile, destFile);
+    }
+  }
+}
+
+async function startPocketBase() {
+  await fs.mkdir(pbData, { recursive: true });
+  await copyNewMigrations();
+
   const resourcesPath =
     process.env.NODE_ENV === "development"
       ? path.join(__dirname, "..", "..", "assets", "pocketbase")
@@ -328,7 +356,8 @@ function startPocketBase() {
       : path.join(resourcesPath, "pocketbase-linux");
 
   const pb = spawn(pbBinary, ["serve", "--http=127.0.0.1:8090"], {
-    cwd: resourcesPath,
+    cwd: pbData, // <-- this is where PocketBase will create/access the database
+    stdio: "pipe"
   });
 
   pb.stdout.on("data", (d) => console.log(`[PB] ${d}`));

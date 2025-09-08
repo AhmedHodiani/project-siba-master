@@ -316,11 +316,11 @@ export function HomeScreen() {
       {/* Footer */}
       <div className="home-footer">
         <div className="footer-content">
-          <span className="footer-item">project-siba v1.2.83</span>
+          <span className="footer-item">project-siba v1.0.0</span>
           <span className="footer-separator">•</span>
           <span className="footer-item">Released: 8th of September 2025</span>
           <span className="footer-separator">•</span>
-            <span className="footer-item">Built with 🤍 by Ahmed Taher</span>
+            <span className="footer-item">Built with 🤍 by Ahmed Hodiani</span>
         </div>
       </div>
     </div>

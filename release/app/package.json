@@ -1,8 +1,8 @@
 {
   "name": "project-siba-master",
-  "version": "1.3.0",
+  "version": "1.0.0",
   "author": {
-    "name": "Ahmed Taher",
+    "name": "Ahmed Hodiani",
     "email": "a.hodiani@hotmail.com"
   },
   "main": "./dist/main/main.js"
