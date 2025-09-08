@@ -46,10 +46,16 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
   
   // Brush properties state
   const [brushProperties, setBrushProperties] = useState({
-    strokeColor: '#000000',
-    strokeWidth: 2,
+    strokeColor: '#FFFFFF',
+    strokeWidth: 5,
     opacity: 1
   });
+  
+  // Straight line drawing state
+  const [isCtrlPressed, setIsCtrlPressed] = useState(false);
+  const [straightLineStart, setStraightLineStart] = useState<Point | null>(null); // Start point for straight line mode
+
+  // Keyboard event handling for Ctrl key
   
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{
@@ -60,6 +66,12 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
   } | null>(null);
   
   const svgRef = useRef<SVGSVGElement>(null);
+
+  // Helper function to create straight line from start to current mouse position
+  const constrainToStraightLine = useCallback((startPoint: Point, currentPoint: Point): Point => {
+    // Simply return the current point - no angle constraints, just follow the mouse
+    return currentPoint;
+  }, []);
 
   // Calculate viewBox - center the canvas at (0,0)
   // Make viewBox responsive to actual screen dimensions and zoom level
@@ -116,7 +128,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
   }
 
   // Handle wheel zoom with mouse position tracking
-  const handleWheel = useCallback((e: React.WheelEvent) => {
+  const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
     
     if (!svgRef.current) return;
@@ -143,6 +155,17 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
       zoom: newZoom
     });
   }, [viewport.zoom, viewport.x, viewport.y, width, height]);
+
+  // Register wheel event with non-passive listener
+  useEffect(() => {
+    const element = svgRef.current;
+    if (!element) return;
+
+    element.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      element.removeEventListener('wheel', handleWheel);
+    };
+  }, [handleWheel]);
 
   // Handle mouse down
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -184,6 +207,11 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
           strokeWidth: brushProperties.strokeWidth,
           opacity: brushProperties.opacity
         };
+
+        // If Ctrl is pressed, set up straight line mode
+        if (isCtrlPressed) {
+          setStraightLineStart(worldPoint);
+        }
 
         setDrawingState(prev => ({
           ...prev,
@@ -309,22 +337,40 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
       const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
       const worldPoint = DrawingUtils.screenToWorld(screenPoint, viewport, { width, height });
 
-      setDrawingState(prev => ({
-        ...prev,
-        objects: prev.objects.map(obj => {
-          if (obj.id === currentFreehandId && obj.type === 'freehand') {
-            const freehandObj = obj as any; // Cast to access points
-            return {
-              ...freehandObj,
-              points: [...freehandObj.points, worldPoint]
-            };
-          }
-          return obj;
-        })
-      }));
+      if (isCtrlPressed && straightLineStart) {
+        // Straight line mode: Replace entire object with just start and current point
+        setDrawingState(prev => ({
+          ...prev,
+          objects: prev.objects.map(obj => {
+            if (obj.id === currentFreehandId && obj.type === 'freehand') {
+              const freehandObj = obj as any;
+              return {
+                ...freehandObj,
+                points: [straightLineStart, worldPoint] // Only 2 points: start and current
+              };
+            }
+            return obj;
+          })
+        }));
+      } else if (!isCtrlPressed) {
+        // Normal freehand mode: Add points continuously
+        setDrawingState(prev => ({
+          ...prev,
+          objects: prev.objects.map(obj => {
+            if (obj.id === currentFreehandId && obj.type === 'freehand') {
+              const freehandObj = obj as any;
+              return {
+                ...freehandObj,
+                points: [...freehandObj.points, worldPoint]
+              };
+            }
+            return obj;
+          })
+        }));
+      }
     }
     // Drawing preview could be handled here in the future
-  }, [isDragging, isDraggingObject, draggedObjectId, objectDragStart, objectOriginalPosition, dragStart, viewport, width, height, isDrawing, currentFreehandId, drawingState.selectedTool]);
+  }, [isDragging, isDraggingObject, draggedObjectId, objectDragStart, objectOriginalPosition, dragStart, viewport, width, height, isDrawing, currentFreehandId, drawingState.selectedTool, isCtrlPressed, straightLineStart]);
 
   // Handle mouse up - commit drag movement, create object, or finish object drag
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
@@ -351,6 +397,8 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
         setCurrentFreehandId(null);
         setIsDrawing(false);
         setDrawStart(null);
+        // Reset straight line state
+        setStraightLineStart(null);
       } else {
         // Create new drawing object for other tools
         const rect = svgRef.current?.getBoundingClientRect();
@@ -397,6 +445,42 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [drawingState.selectedObjectIds]);
+
+  // Ctrl key detection for straight line drawing
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === 'Control' || e.ctrlKey) && !isCtrlPressed) {
+        setIsCtrlPressed(true);
+        
+        // If currently drawing, switch to straight line mode
+        if (isDrawing && currentFreehandId) {
+          const currentObj = drawingState.objects.find(obj => obj.id === currentFreehandId);
+          if (currentObj && currentObj.type === 'freehand') {
+            const freehandObj = currentObj as any;
+            // Remember the start point (first point of the current drawing)
+            if (freehandObj.points.length > 0) {
+              setStraightLineStart(freehandObj.points[0]);
+            }
+          }
+        }
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Control' || !e.ctrlKey) {
+        setIsCtrlPressed(false);
+        setStraightLineStart(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [isCtrlPressed, isDrawing, currentFreehandId, drawingState.objects]);
 
   useEffect(() => {
     if (isDragging || isDraggingObject) {
@@ -701,7 +785,6 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height, mov
         width={width}
         height={height}
         viewBox={`${viewBoxX} ${viewBoxY} ${viewBoxWidth} ${viewBoxHeight}`}
-        onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
