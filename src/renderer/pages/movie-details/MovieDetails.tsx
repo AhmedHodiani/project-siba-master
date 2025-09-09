@@ -33,6 +33,7 @@ export const MovieDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const videoPlayerRef = useRef<VideoPlayerRef>(null);
+  const drawingModeRef = useRef<any>(null);
   const [movie, setMovie] = useState<MovieRecord | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -104,6 +105,36 @@ export const MovieDetails: React.FC = () => {
 
   // Study mode state
   const [studyMode, setStudyMode] = useState<'movie' | 'flashcard' | 'drawing'>('movie');
+
+  // Helper function to change study mode with viewport saving
+  const handleStudyModeChange = async (newMode: 'movie' | 'flashcard' | 'drawing') => {
+    // If switching away from drawing mode, save the viewport first
+    if (studyMode === 'drawing' && newMode !== 'drawing' && drawingModeRef.current) {
+      console.log('Switching away from drawing mode, saving viewport');
+      try {
+        await drawingModeRef.current.saveCurrentViewport();
+        console.log('Viewport saved successfully before mode switch');
+      } catch (error) {
+        console.error('Failed to save viewport before mode switch:', error);
+      }
+    }
+    
+    setStudyMode(newMode);
+  };
+
+  // Save viewport when component unmounts (for other navigation scenarios)
+  useEffect(() => {
+    return () => {
+      // Save viewport on cleanup if in drawing mode
+      if (studyMode === 'drawing' && drawingModeRef.current) {
+        console.log('MovieDetails unmounting, saving viewport');
+        // Use a fire-and-forget approach since component is unmounting
+        drawingModeRef.current.saveCurrentViewport().catch((error: any) => {
+          console.error('Failed to save viewport on component unmount:', error);
+        });
+      }
+    };
+  }, [studyMode]);
 
     // Video preview state for flashcard study
   const [previewPlaying, setPreviewPlaying] = useState(false);
@@ -960,6 +991,17 @@ export const MovieDetails: React.FC = () => {
         console.warn('Failed to save position on back navigation:', error);
       }
     }
+
+    // Save viewport if in drawing mode
+    if (studyMode === 'drawing' && drawingModeRef.current) {
+      try {
+        console.log('Saving viewport before navigating back to home');
+        await drawingModeRef.current.saveCurrentViewport();
+      } catch (error) {
+        console.warn('Failed to save viewport on back navigation:', error);
+      }
+    }
+    
     navigate('/');
   };
 
@@ -993,21 +1035,21 @@ export const MovieDetails: React.FC = () => {
         
         <div style={{ display: 'flex', gap: '8px' }}>
           <Button 
-            onClick={() => setStudyMode('movie')} 
+            onClick={() => handleStudyModeChange('movie')} 
             variant={studyMode === 'movie' ? 'danger' : 'secondary'} 
             size="small"
           >
             Movie Study
           </Button>
           <Button 
-            onClick={() => setStudyMode('flashcard')} 
+            onClick={() => handleStudyModeChange('flashcard')} 
             variant={studyMode === 'flashcard' ? 'danger' : 'secondary'} 
             size="small"
           >
             Flashcard Study
           </Button>
           <Button 
-            onClick={() => setStudyMode('drawing')} 
+            onClick={() => handleStudyModeChange('drawing')} 
             variant={studyMode === 'drawing' ? 'danger' : 'secondary'} 
             size="small"
           >
@@ -1017,7 +1059,7 @@ export const MovieDetails: React.FC = () => {
       </div>
       <div style={{ flex: 1 }}>
         {studyMode === 'drawing' ? (
-          <DrawingMode movieId={movie?.id} />
+          <DrawingMode ref={drawingModeRef} movieId={movie?.id} />
         ) : (
           <GoldenLayoutWrapper key={studyMode} config={activeLayoutConfig}>
           <div id="video-player">

@@ -1,108 +1,335 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useImperativeHandle } from 'react';
 import DrawingCanvas from './DrawingCanvas';
-import { Canvas, CanvasState } from '../../lib/types/drawing';
+import { Canvas, CanvasState, canvasToRecord, recordToCanvas, drawingObjectToRecord, recordToDrawingObject, DrawingObject } from '../../lib/types/drawing';
+import pocketBaseService from '../../lib/services/pocketbase';
+import type { MovieCanvasRecord, CanvasObjectRecord } from '../../lib/types/database';
 import './DrawingMode.css';
 
 interface DrawingModeProps {
-  movieId?: string;
+  movieId: string; // Make movieId required since we need it for database operations
 }
 
-export const DrawingMode: React.FC<DrawingModeProps> = ({ movieId }) => {
+interface DrawingModeRef {
+  saveCurrentViewport: () => Promise<boolean>;
+}
+
+export const DrawingMode = React.forwardRef<DrawingModeRef, DrawingModeProps>(({ movieId }, ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const drawingCanvasRef = useRef<any>(null); // Add ref for DrawingCanvas
+  
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [canvasState, setCanvasState] = useState<CanvasState>({
     canvases: [],
     activeCanvasId: null
   });
+  
+  // UI state
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [editingCanvasId, setEditingCanvasId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [newCanvasTitle, setNewCanvasTitle] = useState('');
-
-  // Initialize with a default canvas
+  
+  // Save status state
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isSavingViewport, setIsSavingViewport] = useState(false);
+  
+  // Load canvases from database when component mounts or movieId changes
   useEffect(() => {
-    if (canvasState.canvases.length === 0) {
-      const defaultCanvas: Canvas = {
-        id: 'default-' + Date.now(),
-        title: 'My Drawing Canvas',
-        createdAt: new Date(),
-        lastModified: new Date(),
-        objects: [],
-        viewport: { x: 0, y: 0, zoom: 1 }
-      };
-      setCanvasState({
-        canvases: [defaultCanvas],
-        activeCanvasId: defaultCanvas.id
-      });
-    }
-  }, []);
-
-  // Canvas management functions
-  const createCanvas = (title: string) => {
-    const newCanvas: Canvas = {
-      id: 'canvas-' + Date.now(),
-      title,
-      createdAt: new Date(),
-      lastModified: new Date(),
-      objects: [],
-      viewport: { x: 0, y: 0, zoom: 1 }
+    const loadCanvases = async () => {
+      if (!movieId) return;
+      
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        // Load canvases for this movie
+        const canvasRecords = await pocketBaseService.getMovieCanvases(movieId);
+        
+        if (canvasRecords.length === 0) {
+          // Create a default canvas if none exist
+          const defaultCanvasData = {
+            title: 'Canvas 1',
+            movie_id: movieId,
+            viewport_x: 0,
+            viewport_y: 0,
+            viewport_zoom: 1,
+            object_count: 0,
+          };
+          
+          const newCanvas = await pocketBaseService.createCanvas(defaultCanvasData);
+          const uiCanvas = recordToCanvas(newCanvas, []);
+          
+          setCanvasState({
+            canvases: [uiCanvas],
+            activeCanvasId: uiCanvas.id
+          });
+        } else {
+          // Convert database records to UI canvases
+          const uiCanvases: Canvas[] = [];
+          
+          for (const canvasRecord of canvasRecords) {
+            // Load objects for each canvas
+            const objectRecords = await pocketBaseService.getCanvasObjects(canvasRecord.id);
+            console.log('Loading canvas:', canvasRecord.title, 'with', objectRecords.length, 'objects');
+            console.log('Object records:', objectRecords);
+            
+            const uiObjects = objectRecords.map((record, index) => {
+              try {
+                const obj = recordToDrawingObject(record);
+                console.log(`Converted object ${index}:`, obj);
+                return obj;
+              } catch (error) {
+                console.error(`Failed to convert object ${index}:`, error, record);
+                return null;
+              }
+            }).filter(obj => obj !== null) as DrawingObject[];
+            
+            console.log('Final UI objects for canvas:', uiObjects);
+            
+            const uiCanvas = recordToCanvas(canvasRecord, uiObjects);
+            uiCanvases.push(uiCanvas);
+          }
+          
+          setCanvasState({
+            canvases: uiCanvases,
+            activeCanvasId: uiCanvases[0]?.id || null
+          });
+          console.log('Set canvas state with canvases:', uiCanvases);
+          console.log('Active canvas ID set to:', uiCanvases[0]?.id);
+          if (uiCanvases[0]) {
+            console.log('Active canvas objects:', uiCanvases[0].objects);
+          }
+        }
+        
+      } catch (error) {
+        console.error('Error loading canvases:', error);
+        setError('Failed to load canvases. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    setCanvasState(prev => ({
-      canvases: [...prev.canvases, newCanvas],
-      activeCanvasId: newCanvas.id
-    }));
+    loadCanvases();
+  }, [movieId]);
+
+  // Save viewport when component unmounts or movieId changes
+  useEffect(() => {
+    return () => {
+      // Save viewport on cleanup - use a more immediate approach
+      if (canvasState.activeCanvasId && drawingCanvasRef.current) {
+        console.log('Component unmounting, saving viewport immediately');
+        
+        // Get current viewport immediately
+        const currentViewport = drawingCanvasRef.current.getCurrentState()?.viewport;
+        if (currentViewport) {
+          // Use a synchronous approach for immediate save
+          const savePromise = pocketBaseService.updateCanvas(canvasState.activeCanvasId, {
+            viewport_x: currentViewport.x,
+            viewport_y: currentViewport.y,
+            viewport_zoom: currentViewport.zoom,
+          });
+          
+          // Don't await - let it complete in background
+          savePromise.catch(error => {
+            console.error('Failed to save viewport on unmount:', error);
+          });
+        }
+      }
+    };
+  }, [canvasState.activeCanvasId]);
+
+  // Save viewport when page is about to unload or becomes hidden
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (canvasState.activeCanvasId && drawingCanvasRef.current) {
+        console.log('Page unloading, saving viewport');
+        
+        const currentViewport = drawingCanvasRef.current.getCurrentState()?.viewport;
+        if (currentViewport) {
+          // For unload events, just trigger a quick save without waiting
+          // The browser will terminate the process anyway, so we can't rely on promises
+          const savePromise = pocketBaseService.updateCanvas(canvasState.activeCanvasId, {
+            viewport_x: currentViewport.x,
+            viewport_y: currentViewport.y,
+            viewport_zoom: currentViewport.zoom,
+          });
+          
+          // Let it complete in background
+          savePromise.catch(error => {
+            console.error('Failed to save viewport on unload:', error);
+          });
+        }
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && canvasState.activeCanvasId) {
+        console.log('Tab hidden, saving viewport');
+        saveCurrentViewport();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [canvasState.activeCanvasId]);
+
+  // Canvas management functions (updated for database)
+  const createCanvas = async (title: string) => {
+    if (!movieId) return;
+
+    try {
+      setError(null);
+      
+      const canvasData = {
+        title,
+        movie_id: movieId,
+        viewport_x: 0,
+        viewport_y: 0,
+        viewport_zoom: 1,
+        object_count: 0,
+      };
+
+      const newCanvasRecord = await pocketBaseService.createCanvas(canvasData);
+      const newCanvas = recordToCanvas(newCanvasRecord, []);
+
+      setCanvasState(prev => ({
+        canvases: [...prev.canvases, newCanvas],
+        activeCanvasId: newCanvas.id
+      }));
+
+    } catch (error) {
+      console.error('Error creating canvas:', error);
+      setError('Failed to create canvas. Please try again.');
+    }
   };
 
-  const selectCanvas = (canvasId: string) => {
+  const selectCanvas = async (canvasId: string) => {
+    // Save current viewport before switching
+    if (canvasState.activeCanvasId && canvasState.activeCanvasId !== canvasId) {
+      console.log('Saving viewport before switching canvas');
+      await saveCurrentViewport();
+    }
+
     setCanvasState(prev => ({
       ...prev,
       activeCanvasId: canvasId
     }));
   };
 
-  const renameCanvas = (canvasId: string, newTitle: string) => {
-    setCanvasState(prev => ({
-      ...prev,
-      canvases: prev.canvases.map(canvas =>
-        canvas.id === canvasId
-          ? { ...canvas, title: newTitle, lastModified: new Date() }
-          : canvas
-      )
-    }));
+  const renameCanvas = async (canvasId: string, newTitle: string) => {
+    try {
+      setError(null);
+      
+      // Update in database
+      await pocketBaseService.updateCanvas(canvasId, { title: newTitle });
+      
+      // Update local state
+      setCanvasState(prev => ({
+        ...prev,
+        canvases: prev.canvases.map(canvas =>
+          canvas.id === canvasId
+            ? { ...canvas, title: newTitle, lastModified: new Date() }
+            : canvas
+        )
+      }));
+
+    } catch (error) {
+      console.error('Error renaming canvas:', error);
+      setError('Failed to rename canvas. Please try again.');
+    }
   };
 
-  const deleteCanvas = (canvasId: string) => {
-    if (canvasState.canvases.length <= 1) return;
+  const deleteCanvas = async (canvasId: string) => {
+    if (canvasState.canvases.length <= 1) {
+      setError('Cannot delete the last canvas');
+      return;
+    }
 
-    const remainingCanvases = canvasState.canvases.filter(c => c.id !== canvasId);
-    const newActiveId = canvasId === canvasState.activeCanvasId 
-      ? remainingCanvases[0].id 
-      : canvasState.activeCanvasId;
+    try {
+      setError(null);
+      
+      // Delete from database (this also deletes all objects)
+      await pocketBaseService.deleteCanvas(canvasId);
+      
+      // Update local state
+      const remainingCanvases = canvasState.canvases.filter(c => c.id !== canvasId);
+      const newActiveId = canvasId === canvasState.activeCanvasId 
+        ? remainingCanvases[0].id 
+        : canvasState.activeCanvasId;
 
-    setCanvasState({
-      canvases: remainingCanvases,
-      activeCanvasId: newActiveId
-    });
+      setCanvasState({
+        canvases: remainingCanvases,
+        activeCanvasId: newActiveId
+      });
+
+    } catch (error) {
+      console.error('Error deleting canvas:', error);
+      setError('Failed to delete canvas. Please try again.');
+    }
   };
 
   const getCurrentCanvas = (): Canvas | null => {
     return canvasState.canvases.find(c => c.id === canvasState.activeCanvasId) || null;
   };
 
-  // Handle canvas updates from DrawingCanvas - wrapped in useCallback to prevent infinite loops
-  const handleCanvasUpdate = useCallback((canvasId: string, updates: Partial<Canvas>) => {
-    setCanvasState(prev => ({
-      ...prev,
-      canvases: prev.canvases.map(canvas =>
-        canvas.id === canvasId
-          ? { ...canvas, ...updates }
-          : canvas
-      )
-    }));
-  }, []);
+  // Save current viewport to database
+  const saveCurrentViewport = async (): Promise<boolean> => {
+    if (!canvasState.activeCanvasId || isSavingViewport) {
+      return false;
+    }
+
+    // Get current viewport from DrawingCanvas
+    const currentViewport = drawingCanvasRef.current?.getCurrentState()?.viewport;
+    if (!currentViewport) {
+      console.log('No viewport to save');
+      return false;
+    }
+
+    setIsSavingViewport(true);
+    setError(null);
+
+    try {
+      console.log('Saving viewport for canvas:', canvasState.activeCanvasId, currentViewport);
+      
+      // Update only viewport fields in database
+      await pocketBaseService.updateCanvas(canvasState.activeCanvasId, {
+        viewport_x: currentViewport.x,
+        viewport_y: currentViewport.y,
+        viewport_zoom: currentViewport.zoom,
+      });
+
+      // Update local state to match
+      setCanvasState(prev => ({
+        ...prev,
+        canvases: prev.canvases.map(canvas =>
+          canvas.id === canvasState.activeCanvasId
+            ? { 
+                ...canvas, 
+                viewport: currentViewport,
+                lastModified: new Date() 
+              }
+            : canvas
+        )
+      }));
+
+      console.log('Viewport saved successfully');
+      return true;
+    } catch (error) {
+      console.error('Error saving viewport:', error);
+      setError('Failed to save viewport position');
+      return false;
+    } finally {
+      setIsSavingViewport(false);
+    }
+  };
 
   // Dropdown handlers
   const handleCreateCanvas = () => {
@@ -127,8 +354,8 @@ export const DrawingMode: React.FC<DrawingModeProps> = ({ movieId }) => {
     setEditingTitle(canvas.title);
   };
 
-  const handleCanvasSelect = (canvasId: string) => {
-    selectCanvas(canvasId);
+  const handleCanvasSelect = async (canvasId: string) => {
+    await selectCanvas(canvasId);
     setIsDropdownOpen(false);
   };
 
@@ -138,6 +365,11 @@ export const DrawingMode: React.FC<DrawingModeProps> = ({ movieId }) => {
       deleteCanvas(canvasId);
     }
   };
+
+  // Expose save method to parent component
+  useImperativeHandle(ref, () => ({
+    saveCurrentViewport: saveCurrentViewport
+  }), [saveCurrentViewport]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -157,20 +389,57 @@ export const DrawingMode: React.FC<DrawingModeProps> = ({ movieId }) => {
     const updateDimensions = () => {
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
-        setDimensions({
+        const newDimensions = {
           width: rect.width,
           height: rect.height
+        };
+        
+        // Only update if dimensions actually changed
+        setDimensions(prev => {
+          if (prev.width !== newDimensions.width || prev.height !== newDimensions.height) {
+            console.log('Dimensions updated:', newDimensions);
+            return newDimensions;
+          }
+          return prev;
         });
       }
     };
 
+    // Initial update
     updateDimensions();
+    
+    // Update on window resize
     window.addEventListener('resize', updateDimensions);
+    
+    // Use ResizeObserver for more reliable dimension tracking
+    let resizeObserver: ResizeObserver | null = null;
+    if (containerRef.current && window.ResizeObserver) {
+      resizeObserver = new ResizeObserver(updateDimensions);
+      resizeObserver.observe(containerRef.current);
+    }
+    
+    // Also update dimensions when canvas state changes (container might become visible)
+    const timeoutId = setTimeout(updateDimensions, 100);
     
     return () => {
       window.removeEventListener('resize', updateDimensions);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+      clearTimeout(timeoutId);
     };
-  }, []);
+  }, [canvasState.activeCanvasId]); // Re-run when active canvas changes
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="drawing-mode loading">
+        <div className="loading-message">
+          <p>Loading canvases...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="drawing-mode">
@@ -288,22 +557,28 @@ export const DrawingMode: React.FC<DrawingModeProps> = ({ movieId }) => {
             </div>
           )}
         </div>
+        
         <div className="drawing-mode-info">
           <span>Drag to pan • Scroll to zoom • Origin at center (0,0)</span>
+          {isSavingViewport && (
+            <span className="save-status saving">
+              • Saving viewport...
+            </span>
+          )}
         </div>
       </div>
       
       <div className="drawing-mode-content" ref={containerRef}>
         <DrawingCanvas 
+          ref={drawingCanvasRef}
           width={dimensions.width} 
           height={dimensions.height}
           movieId={movieId}
           currentCanvas={getCurrentCanvas()}
-          onCanvasUpdate={handleCanvasUpdate}
         />
       </div>
     </div>
   );
-};
+});
 
 export default DrawingMode;

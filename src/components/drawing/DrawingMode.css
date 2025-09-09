@@ -20,6 +20,31 @@
   font-size: 12px;
   color: #888;
   font-style: italic;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.save-status {
+  font-weight: 500;
+}
+
+.save-status.saving {
+  color: #ffa500;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.save-status.saved {
+  color: #4caf50;
+}
+
+.save-status.error {
+  color: #f44336;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 
 .drawing-mode-content {
@@ -237,4 +262,75 @@
 .create-first-btn:hover {
   background: #404040;
   border-color: #666666;
+}
+
+/* Save Status Bar */
+.save-status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: #333;
+  border-bottom: 1px solid #444;
+  font-size: 12px;
+}
+
+.save-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.save-btn {
+  background: #007acc;
+  border: 1px solid #007acc;
+  color: #ffffff;
+  padding: 6px 12px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border-radius: 3px;
+}
+
+.save-btn:hover:not(:disabled) {
+  background: #005a9e;
+  border-color: #005a9e;
+}
+
+.save-btn:disabled {
+  background: #555;
+  border-color: #555;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.save-status {
+  color: #ccc;
+  font-size: 11px;
+}
+
+.error-message {
+  color: #ff6b6b;
+  font-size: 11px;
+  background: rgba(255, 107, 107, 0.1);
+  padding: 4px 8px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 107, 107, 0.3);
+}
+
+/* Loading State */
+.drawing-mode.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-message {
+  text-align: center;
+  color: #888;
+}
+
+.loading-message p {
+  margin: 0;
+  font-size: 14px;
 }

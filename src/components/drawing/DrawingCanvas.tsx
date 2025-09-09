@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { DrawingObject, ToolType, Point, DrawingState, Canvas } from '../../lib/types/drawing';
 import { FlashcardRecord } from '../../lib/types/database';
 import { DrawingUtils } from '../../lib/services/drawing';
@@ -22,20 +22,23 @@ interface DrawingCanvasProps {
   height: number;
   movieId?: string;
   currentCanvas: Canvas | null;
-  onCanvasUpdate?: (canvasId: string, updates: Partial<Canvas>) => void;
 }
 
-export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ 
+export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({ 
   width, 
   height, 
   movieId, 
   currentCanvas, 
-  onCanvasUpdate 
-}) => {
+}, ref) => {
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  
+  // Use refs to track loading state and prevent circular updates
+  const isLoadingCanvas = useRef(false);
+  const lastLoadedCanvasId = useRef<string | null>(null);
+  
   const [drawingState, setDrawingState] = useState<DrawingState>({
     objects: [],
     selectedTool: 'select',
@@ -44,31 +47,40 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
   // Load canvas data when currentCanvas changes
   useEffect(() => {
-    if (currentCanvas) {
-      setDrawingState({
-        objects: currentCanvas.objects || [],
-        selectedTool: 'select',
-        selectedObjectIds: []
-      });
+    if (currentCanvas && currentCanvas.id !== lastLoadedCanvasId.current) {
+      console.log('DrawingCanvas: Loading canvas', currentCanvas.id, 'with', currentCanvas.objects?.length, 'objects');
       
-      if (currentCanvas.viewport) {
-        setViewport(currentCanvas.viewport);
-      } else {
-        setViewport({ x: 0, y: 0, zoom: 1 });
-      }
+      isLoadingCanvas.current = true;
+      lastLoadedCanvasId.current = currentCanvas.id;
+      
+      const newObjects = currentCanvas.objects || [];
+      console.log('DrawingCanvas: Setting objects to:', newObjects.length);
+      
+      setDrawingState(prev => ({
+        ...prev,
+        objects: newObjects,
+        selectedObjectIds: [] // Clear selection when switching canvas
+      }));
+      
+      // Always reset viewport to ensure clean state
+      const newViewport = currentCanvas.viewport || { x: 0, y: 0, zoom: 1 };
+      setViewport(newViewport);
+      
+      // Allow updates after a short delay
+      setTimeout(() => {
+        isLoadingCanvas.current = false;
+      }, 100);
     }
   }, [currentCanvas?.id]);
 
-  // Save canvas changes back to parent
-  useEffect(() => {
-    if (currentCanvas && onCanvasUpdate) {
-      onCanvasUpdate(currentCanvas.id, {
-        objects: drawingState.objects,
-        viewport: viewport,
-        lastModified: new Date()
-      });
-    }
-  }, [drawingState.objects, viewport, currentCanvas?.id, onCanvasUpdate]);
+  useImperativeHandle(ref, () => ({
+    getCurrentState: () => ({
+      objects: drawingState.objects,
+      viewport: viewport,
+      selectedObjectIds: drawingState.selectedObjectIds
+    }),
+  }), [drawingState.objects, viewport, drawingState.selectedObjectIds]);
+
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawStart, setDrawStart] = useState<Point | null>(null);
   const [isDraggingObject, setIsDraggingObject] = useState(false);
@@ -108,12 +120,6 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   } | null>(null);
   
   const svgRef = useRef<SVGSVGElement>(null);
-
-  // Helper function to create straight line from start to current mouse position
-  const constrainToStraightLine = useCallback((startPoint: Point, currentPoint: Point): Point => {
-    // Simply return the current point - no angle constraints, just follow the mouse
-    return currentPoint;
-  }, []);
 
   // Calculate viewBox - center the canvas at (0,0)
   // Make viewBox responsive to actual screen dimensions and zoom level
@@ -196,6 +202,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       y: newViewportY,
       zoom: newZoom
     });
+    
   }, [viewport.zoom, viewport.x, viewport.y, width, height]);
 
   // Register wheel event with non-passive listener
@@ -235,6 +242,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           selectedTool: 'select', // Switch back to select tool
           selectedObjectIds: [newObject.id] // Select the new object
         }));
+        
       } else if (drawingState.selectedTool === 'sticky-note') {
         // Create sticky note immediately on click
         const newObject = DrawingUtils.createObject({
@@ -257,6 +265,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           selectedTool: 'select', // Switch back to select tool
           selectedObjectIds: [newObject.id] // Select the new object
         }));
+        
       } else if (drawingState.selectedTool === 'freehand') {
         // Start freehand drawing immediately - ignore object interactions
         const newObject = DrawingUtils.createObject({
@@ -477,6 +486,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         x: prev.x - dragOffset.x * scaleFactorX,
         y: prev.y - dragOffset.y * scaleFactorY
       }));
+      
       setIsDragging(false);
       setDragOffset({ x: 0, y: 0 });
     } else if (isDraggingObject) {
@@ -514,6 +524,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         
         if (!isEditingText && drawingState.selectedObjectIds.length > 0) {
           e.preventDefault();
+          console.log('DELETE KEY: Deleting object', drawingState.selectedObjectIds[0]);
           // Delete the first selected object
           const objectToDelete = drawingState.selectedObjectIds[0];
           setDrawingState(prev => ({
@@ -521,6 +532,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
             objects: prev.objects.filter(obj => obj.id !== objectToDelete),
             selectedObjectIds: prev.selectedObjectIds.filter(id => id !== objectToDelete)
           }));
+          
         }
       }
     };
@@ -782,6 +794,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           : obj
       )
     }));
+    
   }, []);
 
   // Brush properties handlers
@@ -1032,6 +1045,6 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       />
     </div>
   );
-};
+});
 
 export default DrawingCanvas;

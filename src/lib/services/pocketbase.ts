@@ -8,6 +8,12 @@ import {
   UpdateFlashcardData,
   ReviewLogRecord,
   CreateReviewLogData,
+  MovieCanvasRecord,
+  CreateCanvasData,
+  UpdateCanvasData,
+  CanvasObjectRecord,
+  CreateCanvasObjectData,
+  UpdateCanvasObjectData,
   COLLECTIONS 
 } from '../types/database';
 
@@ -689,6 +695,141 @@ class PocketBaseService {
         flashcardsWithNotes: 0,
       };
     }
+  }
+
+  // ===== DRAWING SYSTEM METHODS =====
+
+  // Canvas CRUD operations
+  async getMovieCanvases(movieId: string): Promise<MovieCanvasRecord[]> {
+    const pb = await this.getPocketBase();
+    const records = await pb.collection(COLLECTIONS.MOVIE_CANVASES).getFullList({
+      filter: `movie_id = "${movieId}"`,
+      sort: '-updated', // Most recently updated first
+    });
+    return records as unknown as MovieCanvasRecord[];
+  }
+
+  async createCanvas(data: CreateCanvasData): Promise<MovieCanvasRecord> {
+    const pb = await this.getPocketBase();
+    
+    const createData: any = {
+      ...data,
+      viewport_x: data.viewport_x ?? 0,
+      viewport_y: data.viewport_y ?? 0,
+      viewport_zoom: data.viewport_zoom ?? 1,
+      object_count: data.object_count ?? 0,
+    };
+
+    const record = await pb.collection(COLLECTIONS.MOVIE_CANVASES).create(createData);
+    return record as unknown as MovieCanvasRecord;
+  }
+
+  async getCanvas(canvasId: string): Promise<MovieCanvasRecord> {
+    const pb = await this.getPocketBase();
+    const record = await pb.collection(COLLECTIONS.MOVIE_CANVASES).getOne(canvasId);
+    return record as unknown as MovieCanvasRecord;
+  }
+
+  async updateCanvas(canvasId: string, data: UpdateCanvasData): Promise<MovieCanvasRecord> {
+    const pb = await this.getPocketBase();
+    const record = await pb.collection(COLLECTIONS.MOVIE_CANVASES).update(canvasId, data);
+    return record as unknown as MovieCanvasRecord;
+  }
+
+  async deleteCanvas(canvasId: string): Promise<boolean> {
+    const pb = await this.getPocketBase();
+    
+    // First delete all objects in this canvas
+    await this.deleteAllCanvasObjects(canvasId);
+    
+    // Then delete the canvas itself
+    await pb.collection(COLLECTIONS.MOVIE_CANVASES).delete(canvasId);
+    return true;
+  }
+
+  // Canvas Objects CRUD operations
+  async getCanvasObjects(canvasId: string): Promise<CanvasObjectRecord[]> {
+    const pb = await this.getPocketBase();
+    const records = await pb.collection(COLLECTIONS.CANVAS_OBJECTS).getFullList({
+      filter: `canvas_id = "${canvasId}"`,
+      sort: 'z_index', // Order by layer
+    });
+    return records as unknown as CanvasObjectRecord[];
+  }
+
+  async createCanvasObject(data: CreateCanvasObjectData): Promise<CanvasObjectRecord> {
+    const pb = await this.getPocketBase();
+    const record = await pb.collection(COLLECTIONS.CANVAS_OBJECTS).create(data);
+    
+    // Update canvas object count
+    await this.updateCanvasObjectCount(data.canvas_id);
+    
+    return record as unknown as CanvasObjectRecord;
+  }
+
+  async updateCanvasObject(objectId: string, data: UpdateCanvasObjectData): Promise<CanvasObjectRecord> {
+    const pb = await this.getPocketBase();
+    const record = await pb.collection(COLLECTIONS.CANVAS_OBJECTS).update(objectId, data);
+    return record as unknown as CanvasObjectRecord;
+  }
+
+  async deleteCanvasObject(objectId: string): Promise<boolean> {
+    const pb = await this.getPocketBase();
+    
+    // Get the object to find its canvas_id
+    const object = await pb.collection(COLLECTIONS.CANVAS_OBJECTS).getOne(objectId);
+    const canvasId = object.canvas_id;
+    
+    // Delete the object
+    await pb.collection(COLLECTIONS.CANVAS_OBJECTS).delete(objectId);
+    
+    // Update canvas object count
+    await this.updateCanvasObjectCount(canvasId);
+    
+    return true;
+  }
+
+  async deleteAllCanvasObjects(canvasId: string): Promise<boolean> {
+    const pb = await this.getPocketBase();
+    
+    // Get all objects for this canvas
+    const objects = await this.getCanvasObjects(canvasId);
+    
+    // Delete all objects
+    for (const object of objects) {
+      await pb.collection(COLLECTIONS.CANVAS_OBJECTS).delete(object.id);
+    }
+    
+    // Update canvas object count to 0
+    await this.updateCanvas(canvasId, { object_count: 0 });
+    
+    return true;
+  }
+
+  // Batch operations for performance
+  async saveCanvasObjects(canvasId: string, objects: CreateCanvasObjectData[]): Promise<CanvasObjectRecord[]> {
+    const pb = await this.getPocketBase();
+    
+    // Delete existing objects for this canvas
+    await this.deleteAllCanvasObjects(canvasId);
+    
+    // Create new objects
+    const createdObjects: CanvasObjectRecord[] = [];
+    for (const objectData of objects) {
+      const record = await pb.collection(COLLECTIONS.CANVAS_OBJECTS).create(objectData);
+      createdObjects.push(record as unknown as CanvasObjectRecord);
+    }
+    
+    // Update canvas object count
+    await this.updateCanvas(canvasId, { object_count: objects.length });
+    
+    return createdObjects;
+  }
+
+  // Helper method to update canvas object count
+  private async updateCanvasObjectCount(canvasId: string): Promise<void> {
+    const objects = await this.getCanvasObjects(canvasId);
+    await this.updateCanvas(canvasId, { object_count: objects.length });
   }
 }
 

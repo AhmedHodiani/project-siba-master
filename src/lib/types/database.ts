@@ -127,6 +127,69 @@ export const COLLECTIONS = {
   MOVIES: 'movies',
   FLASHCARDS: 'flashcards',
   REVIEW_LOGS: 'review_logs',
+  MOVIE_CANVASES: 'movie_canvases',
+  CANVAS_OBJECTS: 'canvas_objects',
 } as const;
 
 export type CollectionName = typeof COLLECTIONS[keyof typeof COLLECTIONS];
+
+// Drawing System Types
+
+export interface MovieCanvasRecord extends BaseRecord {
+  title: string;
+  movie_id: string;           // Foreign key to movies
+  viewport_x: number;         // Viewport position X
+  viewport_y: number;         // Viewport position Y
+  viewport_zoom: number;      // Viewport zoom level
+  object_count: number;       // Number of objects on canvas (for performance)
+}
+
+export interface CanvasObjectRecord extends BaseRecord {
+  canvas_id: string;          // Foreign key to movie_canvases
+  type: 'freehand' | 'sticky-note' | 'flashcard' | 'translation';
+  x: number;                  // Object position X
+  y: number;                  // Object position Y
+  z_index: number;            // Layer order
+  object_data: any;           // JSON blob with type-specific properties
+  complexity_score?: number;  // Optional performance optimization field
+}
+
+// Type for creating new canvases
+export interface CreateCanvasData {
+  title: string;
+  movie_id: string;
+  viewport_x?: number;
+  viewport_y?: number;
+  viewport_zoom?: number;
+  object_count?: number;
+}
+
+// Type for updating canvases
+export interface UpdateCanvasData {
+  title?: string;
+  viewport_x?: number;
+  viewport_y?: number;
+  viewport_zoom?: number;
+  object_count?: number;
+}
+
+// Type for creating new canvas objects
+export interface CreateCanvasObjectData {
+  canvas_id: string;
+  type: 'freehand' | 'sticky-note' | 'flashcard' | 'translation';
+  x: number;
+  y: number;
+  z_index: number;
+  object_data: any;
+  complexity_score?: number;
+}
+
+// Type for updating canvas objects
+export interface UpdateCanvasObjectData {
+  type?: 'freehand' | 'sticky-note' | 'flashcard' | 'translation';
+  x?: number;
+  y?: number;
+  z_index?: number;
+  object_data?: any;
+  complexity_score?: number;
+}
