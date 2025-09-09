@@ -47,9 +47,13 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
   
   const [drawingState, setDrawingState] = useState<DrawingState>({
     objects: [],
-    selectedTool: 'select',
-    selectedObjectIds: []
+    selectedObjectIds: [],
+    selectedTool: 'select'
   });
+  
+  // Ref to always get the latest drawing state
+  const drawingStateRef = useRef(drawingState);
+  drawingStateRef.current = drawingState;
 
   // Load canvas data when currentCanvas changes
   useEffect(() => {
@@ -294,6 +298,13 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
           startPoint: worldPoint
         });
 
+        console.log('Created new freehand object:', {
+          id: newObject.id,
+          type: newObject.type,
+          points: (newObject as any).points,
+          startPoint: worldPoint
+        });
+
         // Apply current brush properties
         newObject.style = {
           ...newObject.style,
@@ -468,6 +479,7 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
           objects: prev.objects.map(obj => {
             if (obj.id === currentFreehandId && obj.type === 'freehand') {
               const freehandObj = obj as any;
+              console.log('Straight line mode - points:', [straightLineStart, worldPoint]);
               return {
                 ...freehandObj,
                 points: [straightLineStart, worldPoint] // Only 2 points: start and current
@@ -483,9 +495,10 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
           objects: prev.objects.map(obj => {
             if (obj.id === currentFreehandId && obj.type === 'freehand') {
               const freehandObj = obj as any;
+              const newPoints = [...freehandObj.points, worldPoint];
               return {
                 ...freehandObj,
-                points: [...freehandObj.points, worldPoint]
+                points: newPoints
               };
             }
             return obj;
@@ -519,7 +532,15 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
     } else if (isDrawing && drawStart) {
       if (drawingState.selectedTool === 'freehand' && currentFreehandId) {
         // Finish freehand drawing - save to database
-        const completedObject = drawingState.objects.find(obj => obj.id === currentFreehandId);
+        // Use ref to get the latest state with all accumulated points
+        const completedObject = drawingStateRef.current.objects.find(obj => obj.id === currentFreehandId);
+        console.log('Finishing freehand drawing. Completed object:', {
+          id: completedObject?.id,
+          type: completedObject?.type,
+          points: completedObject?.type === 'freehand' ? (completedObject as any).points : 'N/A',
+          pointCount: completedObject?.type === 'freehand' ? (completedObject as any).points?.length : 'N/A'
+        });
+        
         if (completedObject && onObjectCreated) {
           onObjectCreated(completedObject).catch(error => {
             console.error('Failed to save freehand object:', error);
@@ -613,67 +634,28 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
   }, [isCtrlPressed, isDrawing, currentFreehandId, drawingState.objects]);
 
   useEffect(() => {
-    if (isDragging || isDraggingObject) {
+    // Only handle canvas panning events here, object dragging is handled in handleObjectDragStart
+    if (isDragging) {
+      console.log('Setting up canvas pan events');
+      
       const handleGlobalMouseMove = (e: MouseEvent) => {
-        if (isDragging) {
-          const deltaX = e.clientX - dragStart.x;
-          const deltaY = e.clientY - dragStart.y;
-          setDragOffset({ x: deltaX, y: deltaY });
-        } else if (isDraggingObject && draggedObjectId && objectDragStart && objectOriginalPosition) {
-          const rect = svgRef.current?.getBoundingClientRect();
-          if (!rect) return;
-
-          const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-          const worldPoint = DrawingUtils.screenToWorld(screenPoint, viewport, { width, height });
-          
-          // Calculate total delta from original start position
-          const totalDeltaX = worldPoint.x - objectDragStart.x;
-          const totalDeltaY = worldPoint.y - objectDragStart.y;
-
-          setDrawingState(prev => ({
-            ...prev,
-            objects: prev.objects.map(obj => 
-              obj.id === draggedObjectId 
-                ? { ...obj, x: objectOriginalPosition.x + totalDeltaX, y: objectOriginalPosition.y + totalDeltaY }
-                : obj
-            )
-          }));
-
-          // Don't update objectDragStart - keep it fixed at the original drag start position
-        }
+        const deltaX = e.clientX - dragStart.x;
+        const deltaY = e.clientY - dragStart.y;
+        setDragOffset({ x: deltaX, y: deltaY });
       };
 
       const handleGlobalMouseUp = () => {
-        if (isDragging) {
-          // Commit canvas pan
-          const scaleFactorX = viewBoxWidth / width;
-          const scaleFactorY = viewBoxHeight / height;
-          setViewport(prev => ({
-            ...prev,
-            x: prev.x - dragOffset.x * scaleFactorX,
-            y: prev.y - dragOffset.y * scaleFactorY
-          }));
-          setIsDragging(false);
-          setDragOffset({ x: 0, y: 0 });
-        } else if (isDraggingObject) {
-          // Finish object dragging - save position to database
-          if (draggedObjectId && onObjectUpdated) {
-            const draggedObject = drawingState.objects.find(obj => obj.id === draggedObjectId);
-            if (draggedObject) {
-              onObjectUpdated(draggedObjectId, {
-                x: draggedObject.x,
-                y: draggedObject.y
-              }).catch(error => {
-                console.error('Failed to save object position:', error);
-              });
-            }
-          }
-          
-          setIsDraggingObject(false);
-          setDraggedObjectId(null);
-          setObjectDragStart(null);
-          setObjectOriginalPosition(null);
-        }
+        console.log('Canvas pan ended');
+        // Commit canvas pan
+        const scaleFactorX = viewBoxWidth / width;
+        const scaleFactorY = viewBoxHeight / height;
+        setViewport(prev => ({
+          ...prev,
+          x: prev.x - dragOffset.x * scaleFactorX,
+          y: prev.y - dragOffset.y * scaleFactorY
+        }));
+        setIsDragging(false);
+        setDragOffset({ x: 0, y: 0 });
       };
 
       document.addEventListener('mousemove', handleGlobalMouseMove);
@@ -684,7 +666,7 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
         document.removeEventListener('mouseup', handleGlobalMouseUp);
       };
     }
-  }, [isDragging, isDraggingObject, draggedObjectId, objectDragStart, objectOriginalPosition, dragStart, dragOffset, viewport.zoom, viewBoxWidth, viewBoxHeight, width, height, viewport]);
+  }, [isDragging, dragStart, dragOffset, viewBoxWidth, viewBoxHeight, width, height, viewport]);
 
   // Handle tool selection
   const handleToolSelect = useCallback((tool: ToolType) => {
@@ -814,14 +796,75 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
 
   // Handle object drag start
   const handleObjectDragStart = useCallback((objectId: string, startPoint: Point) => {
+    console.log('=== DRAG START ===', { objectId, startPoint });
     const draggedObject = drawingState.objects.find(obj => obj.id === objectId);
     if (draggedObject) {
+      console.log('Setting drag state for object:', objectId, draggedObject);
       setIsDraggingObject(true);
       setDraggedObjectId(objectId);
       setObjectDragStart(startPoint);
       setObjectOriginalPosition({ x: draggedObject.x, y: draggedObject.y });
+      console.log('Drag state set - isDraggingObject: true, draggedObjectId:', objectId);
+      
+      // Set up global mouse events immediately using direct event listeners
+      const handleGlobalMouseMove = (e: MouseEvent) => {
+        const rect = svgRef.current?.getBoundingClientRect();
+        if (!rect) return;
+
+        const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        const worldPoint = DrawingUtils.screenToWorld(screenPoint, viewport, { width, height });
+        
+        // Calculate total delta from original start position
+        const totalDeltaX = worldPoint.x - startPoint.x;
+        const totalDeltaY = worldPoint.y - startPoint.y;
+
+        setDrawingState(prev => ({
+          ...prev,
+          objects: prev.objects.map(obj => 
+            obj.id === objectId 
+              ? { ...obj, x: draggedObject.x + totalDeltaX, y: draggedObject.y + totalDeltaY }
+              : obj
+          )
+        }));
+      };
+
+      const handleGlobalMouseUp = () => {
+        console.log('=== GLOBAL MOUSE UP EVENT ===');
+        console.log('Saving object position for:', objectId);
+        
+        // Save position to database
+        if (onObjectUpdated) {
+          const currentObject = drawingStateRef.current.objects.find(obj => obj.id === objectId);
+          if (currentObject) {
+            console.log('Saving position:', { id: objectId, x: currentObject.x, y: currentObject.y });
+            onObjectUpdated(objectId, {
+              x: currentObject.x,
+              y: currentObject.y
+            }).catch(error => {
+              console.error('Failed to save object position:', error);
+            });
+          }
+        }
+        
+        // Clean up drag state
+        setIsDraggingObject(false);
+        setDraggedObjectId(null);
+        setObjectDragStart(null);
+        setObjectOriginalPosition(null);
+        
+        // Remove event listeners
+        document.removeEventListener('mousemove', handleGlobalMouseMove);
+        document.removeEventListener('mouseup', handleGlobalMouseUp);
+      };
+
+      // Add event listeners
+      console.log('Adding global event listeners for drag');
+      document.addEventListener('mousemove', handleGlobalMouseMove);
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+    } else {
+      console.error('Could not find object to drag:', objectId);
     }
-  }, [drawingState.objects]);
+  }, [drawingState.objects, viewport, width, height, onObjectUpdated]);
 
   // Handle context menu close
   const handleContextMenuClose = useCallback(() => {
@@ -887,41 +930,77 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
   const handlePaperColorChange = useCallback((color: string) => {
     setStickyNoteProperties(prev => ({ ...prev, paperColor: color }));
     // Update selected sticky notes
-    setDrawingState(prev => ({
-      ...prev,
-      objects: prev.objects.map(obj => 
-        obj.selected && obj.type === 'sticky-note' 
-          ? { ...obj, paperColor: color, style: { ...obj.style, fill: color } }
-          : obj
-      )
-    }));
-  }, []);
+    setDrawingState(prev => {
+      const updatedObjects = prev.objects.map(obj => {
+        if (obj.selected && obj.type === 'sticky-note') {
+          const updatedObj = { ...obj, paperColor: color, style: { ...obj.style, fill: color } };
+          // Save to database immediately
+          if (onObjectUpdated) {
+            onObjectUpdated(obj.id, { paperColor: color, style: { ...obj.style, fill: color } }).catch(error => {
+              console.error('Failed to save sticky note paper color:', error);
+            });
+          }
+          return updatedObj;
+        }
+        return obj;
+      });
+      
+      return {
+        ...prev,
+        objects: updatedObjects
+      };
+    });
+  }, [onObjectUpdated]);
 
   const handleFontColorChange = useCallback((color: string) => {
     setStickyNoteProperties(prev => ({ ...prev, fontColor: color }));
     // Update selected sticky notes
-    setDrawingState(prev => ({
-      ...prev,
-      objects: prev.objects.map(obj => 
-        obj.selected && obj.type === 'sticky-note' 
-          ? { ...obj, fontColor: color }
-          : obj
-      )
-    }));
-  }, []);
+    setDrawingState(prev => {
+      const updatedObjects = prev.objects.map(obj => {
+        if (obj.selected && obj.type === 'sticky-note') {
+          const updatedObj = { ...obj, fontColor: color };
+          // Save to database immediately
+          if (onObjectUpdated) {
+            onObjectUpdated(obj.id, { fontColor: color }).catch(error => {
+              console.error('Failed to save sticky note font color:', error);
+            });
+          }
+          return updatedObj;
+        }
+        return obj;
+      });
+      
+      return {
+        ...prev,
+        objects: updatedObjects
+      };
+    });
+  }, [onObjectUpdated]);
 
   const handleFontSizeChange = useCallback((size: number) => {
     setStickyNoteProperties(prev => ({ ...prev, fontSize: size }));
     // Update selected sticky notes
-    setDrawingState(prev => ({
-      ...prev,
-      objects: prev.objects.map(obj => 
-        obj.selected && obj.type === 'sticky-note' 
-          ? { ...obj, fontSize: size }
-          : obj
-      )
-    }));
-  }, []);
+    setDrawingState(prev => {
+      const updatedObjects = prev.objects.map(obj => {
+        if (obj.selected && obj.type === 'sticky-note') {
+          const updatedObj = { ...obj, fontSize: size };
+          // Save to database immediately
+          if (onObjectUpdated) {
+            onObjectUpdated(obj.id, { fontSize: size }).catch(error => {
+              console.error('Failed to save sticky note font size:', error);
+            });
+          }
+          return updatedObj;
+        }
+        return obj;
+      });
+      
+      return {
+        ...prev,
+        objects: updatedObjects
+      };
+    });
+  }, [onObjectUpdated]);
 
   // Calculate current transform for real-time visual feedback during drag
   const currentTransform = isDragging 

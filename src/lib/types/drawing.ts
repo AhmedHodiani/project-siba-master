@@ -160,6 +160,12 @@ export function recordToCanvas(record: MovieCanvasRecord, objects: DrawingObject
  * Convert UI Drawing Object to Database Object Record data
  */
 export function drawingObjectToRecord(object: DrawingObject, canvasId: string): CreateCanvasObjectData {
+  console.log('drawingObjectToRecord - Converting object:', {
+    type: object.type,
+    id: object.id,
+    points: object.type === 'freehand' ? (object as FreehandObject).points : 'N/A'
+  });
+
   // Special case for flashcards - only store flashcardId
   if (object.type === 'flashcard') {
     return {
@@ -176,7 +182,7 @@ export function drawingObjectToRecord(object: DrawingObject, canvasId: string): 
   }
 
   // For all other object types, include common properties
-  return {
+  const result = {
     canvas_id: canvasId,
     type: object.type,
     x: object.x,
@@ -209,6 +215,9 @@ export function drawingObjectToRecord(object: DrawingObject, canvasId: string): 
     },
     complexity_score: calculateComplexityScore(object),
   };
+  
+  console.log('drawingObjectToRecord - Result:', result);
+  return result;
 }
 
 /**

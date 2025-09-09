@@ -80,7 +80,6 @@ export const DrawingMode = React.forwardRef<DrawingModeRef, DrawingModeProps>(({
             const uiObjects = objectRecords.map((record, index) => {
               try {
                 const obj = recordToDrawingObject(record);
-                console.log(`Converted object ${index}:`, obj);
                 return obj;
               } catch (error) {
                 console.error(`Failed to convert object ${index}:`, error, record);
@@ -369,7 +368,12 @@ export const DrawingMode = React.forwardRef<DrawingModeRef, DrawingModeProps>(({
   };
 
   const handleObjectUpdated = async (objectId: string, updates: Partial<DrawingObject>): Promise<void> => {
-    if (!canvasState.activeCanvasId) return;
+    console.log('=== HANDLE OBJECT UPDATED CALLED ===', { objectId, updates, activeCanvasId: canvasState.activeCanvasId });
+    
+    if (!canvasState.activeCanvasId) {
+      console.log('No active canvas, skipping update');
+      return;
+    }
 
     try {
       console.log('Updating object in database:', objectId, updates);
@@ -386,12 +390,16 @@ export const DrawingMode = React.forwardRef<DrawingModeRef, DrawingModeProps>(({
       const updatedObject = { ...currentObject, ...updates } as DrawingObject;
       const objectData = drawingObjectToRecord(updatedObject, canvasState.activeCanvasId);
       
+      console.log('Converted object data for database:', objectData);
+      
       // For now, update all fields (we can optimize later to only send changed fields)
       await pocketBaseService.updateCanvasObject(objectId, {
         x: objectData.x,
         y: objectData.y,
         object_data: objectData.object_data
       });
+      
+      console.log('Successfully updated object in database');
       
       // Update local state
       setCanvasState(prev => ({
