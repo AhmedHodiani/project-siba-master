@@ -4,6 +4,11 @@ import { VideoPreview } from '../ui/VideoPreview';
 import pocketBaseService from '../../lib/services/pocketbase';
 import './FlashcardWidget.css';
 
+// Simple cache to prevent duplicate requests
+const flashcardCache = new Map<string, FlashcardRecord>();
+const movieCache = new Map<string, MovieRecord>();
+const loadingStates = new Map<string, Promise<any>>();
+
 interface FlashcardWidgetProps {
   flashcardId: string; // Changed from flashcard object to just ID
   x: number;
@@ -32,29 +37,77 @@ export const FlashcardWidget: React.FC<FlashcardWidgetProps> = ({
   const [previewTime, setPreviewTime] = useState(0);
   const [previewPlaying, setPreviewPlaying] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Load flashcard and movie data
+  // Load flashcard and movie data with caching
   useEffect(() => {
     const loadData = async () => {
+      if (!flashcardId) {
+        setError('No flashcard ID provided');
+        setLoading(false);
+        return;
+      }
+
       try {
-        // First load the flashcard
-        const flashcardData = await pocketBaseService.getFlashcard(flashcardId);
+        setLoading(true);
+        setError(null);
+
+        // Check if we're already loading this flashcard
+        const loadingKey = `flashcard-${flashcardId}`;
+        if (loadingStates.has(loadingKey)) {
+          await loadingStates.get(loadingKey);
+        }
+
+        // Check cache first
+        let flashcardData = flashcardCache.get(flashcardId);
+        
+        if (!flashcardData) {
+          // Create a loading promise and store it
+          const loadingPromise = pocketBaseService.getFlashcard(flashcardId);
+          loadingStates.set(loadingKey, loadingPromise);
+          
+          try {
+            flashcardData = await loadingPromise;
+            flashcardCache.set(flashcardId, flashcardData);
+          } finally {
+            loadingStates.delete(loadingKey);
+          }
+        }
+        
         setFlashcard(flashcardData);
         setPreviewTime(flashcardData.start_time);
         
-        // Then load the movie
-        const movieData = await pocketBaseService.getMovie(flashcardData.movie_id);
+        // Then load the movie with caching
+        const movieLoadingKey = `movie-${flashcardData.movie_id}`;
+        if (loadingStates.has(movieLoadingKey)) {
+          await loadingStates.get(movieLoadingKey);
+        }
+
+        let movieData = movieCache.get(flashcardData.movie_id);
+        
+        if (!movieData) {
+          // Create a loading promise and store it
+          const movieLoadingPromise = pocketBaseService.getMovie(flashcardData.movie_id);
+          loadingStates.set(movieLoadingKey, movieLoadingPromise);
+          
+          try {
+            movieData = await movieLoadingPromise;
+            movieCache.set(flashcardData.movie_id, movieData);
+          } finally {
+            loadingStates.delete(movieLoadingKey);
+          }
+        }
+        
         setMovie(movieData);
       } catch (error) {
         console.error('Error loading flashcard or movie:', error);
+        setError(`Failed to load flashcard data: ${error}`);
       } finally {
         setLoading(false);
       }
     };
 
-    if (flashcardId) {
-      loadData();
-    }
+    loadData();
   }, [flashcardId]);
 
   // Format time helpers
@@ -152,7 +205,7 @@ export const FlashcardWidget: React.FC<FlashcardWidgetProps> = ({
         onClick={handleClick}
         onMouseDown={handleMouseDown}
       >
-        Error loading flashcard data
+        Error loading flashcard data: {error}
       </div>
     );
   }

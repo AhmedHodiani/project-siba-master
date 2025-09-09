@@ -35,6 +35,7 @@ export const DrawingMode = React.forwardRef<DrawingModeRef, DrawingModeProps>(({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSavingViewport, setIsSavingViewport] = useState(false);
+  const [isSavingObject, setIsSavingObject] = useState(false);
   
   // Load canvases from database when component mounts or movieId changes
   useEffect(() => {
@@ -331,6 +332,117 @@ export const DrawingMode = React.forwardRef<DrawingModeRef, DrawingModeProps>(({
     }
   };
 
+  // Object CRUD operations
+  const handleObjectCreated = async (object: DrawingObject): Promise<void> => {
+    if (!canvasState.activeCanvasId) return;
+
+    setIsSavingObject(true);
+    try {
+      console.log('Creating object in database:', object.id, object.type);
+      
+      const objectData = drawingObjectToRecord(object, canvasState.activeCanvasId);
+      await pocketBaseService.createCanvasObject(objectData);
+      
+      // Update local state to include the new object
+      setCanvasState(prev => ({
+        ...prev,
+        canvases: prev.canvases.map(canvas =>
+          canvas.id === canvasState.activeCanvasId
+            ? { 
+                ...canvas, 
+                objects: canvas.objects.some(obj => obj.id === object.id) 
+                  ? canvas.objects // Object already exists in state
+                  : [...canvas.objects, object], // Add if not exists
+                lastModified: new Date() 
+              }
+            : canvas
+        )
+      }));
+      
+      console.log('Object created successfully:', object.id);
+    } catch (error) {
+      console.error('Failed to create object:', error);
+      throw error; // Re-throw so the canvas can handle it
+    } finally {
+      setIsSavingObject(false);
+    }
+  };
+
+  const handleObjectUpdated = async (objectId: string, updates: Partial<DrawingObject>): Promise<void> => {
+    if (!canvasState.activeCanvasId) return;
+
+    try {
+      console.log('Updating object in database:', objectId, updates);
+      
+      // Get the current object from local state
+      const currentCanvas = getCurrentCanvas();
+      const currentObject = currentCanvas?.objects.find(obj => obj.id === objectId);
+      if (!currentObject) {
+        console.warn('Object not found for update:', objectId);
+        return;
+      }
+
+      // Merge updates with current object
+      const updatedObject = { ...currentObject, ...updates } as DrawingObject;
+      const objectData = drawingObjectToRecord(updatedObject, canvasState.activeCanvasId);
+      
+      // For now, update all fields (we can optimize later to only send changed fields)
+      await pocketBaseService.updateCanvasObject(objectId, {
+        x: objectData.x,
+        y: objectData.y,
+        object_data: objectData.object_data
+      });
+      
+      // Update local state
+      setCanvasState(prev => ({
+        ...prev,
+        canvases: prev.canvases.map(canvas =>
+          canvas.id === canvasState.activeCanvasId
+            ? { 
+                ...canvas, 
+                objects: canvas.objects.map(obj =>
+                  obj.id === objectId ? updatedObject : obj
+                ),
+                lastModified: new Date() 
+              }
+            : canvas
+        )
+      }));
+      
+      console.log('Object updated successfully:', objectId);
+    } catch (error) {
+      console.error('Failed to update object:', error);
+      throw error;
+    }
+  };
+
+  const handleObjectDeleted = async (objectId: string): Promise<void> => {
+    try {
+      console.log('Deleting object from database:', objectId);
+      
+      await pocketBaseService.deleteCanvasObject(objectId);
+      
+      // Update local state to remove the object
+      setCanvasState(prev => ({
+        ...prev,
+        canvases: prev.canvases.map(canvas =>
+          canvas.id === canvasState.activeCanvasId
+            ? { 
+                ...canvas, 
+                objects: canvas.objects.filter(obj => obj.id !== objectId),
+                lastModified: new Date() 
+              }
+            : canvas
+        )
+      }));
+      
+      console.log('Object deleted successfully:', objectId);
+    } catch (error) {
+      console.error('Failed to delete object:', error);
+      throw error;
+    }
+  };
+
   // Dropdown handlers
   const handleCreateCanvas = () => {
     if (newCanvasTitle.trim()) {
@@ -565,6 +677,11 @@ export const DrawingMode = React.forwardRef<DrawingModeRef, DrawingModeProps>(({
               • Saving viewport...
             </span>
           )}
+          {isSavingObject && (
+            <span className="save-status saving">
+              • Saving object...
+            </span>
+          )}
         </div>
       </div>
       
@@ -575,6 +692,9 @@ export const DrawingMode = React.forwardRef<DrawingModeRef, DrawingModeProps>(({
           height={dimensions.height}
           movieId={movieId}
           currentCanvas={getCurrentCanvas()}
+          onObjectCreated={handleObjectCreated}
+          onObjectUpdated={handleObjectUpdated}
+          onObjectDeleted={handleObjectDeleted}
         />
       </div>
     </div>

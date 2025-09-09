@@ -22,13 +22,19 @@ interface DrawingCanvasProps {
   height: number;
   movieId?: string;
   currentCanvas: Canvas | null;
+  onObjectCreated?: (object: DrawingObject) => Promise<void>;
+  onObjectUpdated?: (objectId: string, updates: Partial<DrawingObject>) => Promise<void>;
+  onObjectDeleted?: (objectId: string) => Promise<void>;
 }
 
 export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({ 
   width, 
   height, 
   movieId, 
-  currentCanvas, 
+  currentCanvas,
+  onObjectCreated,
+  onObjectUpdated,
+  onObjectDeleted
 }, ref) => {
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
   const [isDragging, setIsDragging] = useState(false);
@@ -243,6 +249,14 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
           selectedObjectIds: [newObject.id] // Select the new object
         }));
         
+        // Save to database immediately
+        if (onObjectCreated) {
+          onObjectCreated(newObject).catch(error => {
+            console.error('Failed to save translation object:', error);
+            // Optionally remove from state if save failed
+          });
+        }
+        
       } else if (drawingState.selectedTool === 'sticky-note') {
         // Create sticky note immediately on click
         const newObject = DrawingUtils.createObject({
@@ -265,6 +279,13 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
           selectedTool: 'select', // Switch back to select tool
           selectedObjectIds: [newObject.id] // Select the new object
         }));
+        
+        // Save to database immediately
+        if (onObjectCreated) {
+          onObjectCreated(newObject).catch(error => {
+            console.error('Failed to save sticky note object:', error);
+          });
+        }
         
       } else if (drawingState.selectedTool === 'freehand') {
         // Start freehand drawing immediately - ignore object interactions
@@ -497,7 +518,14 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
       setObjectOriginalPosition(null);
     } else if (isDrawing && drawStart) {
       if (drawingState.selectedTool === 'freehand' && currentFreehandId) {
-        // Finish freehand drawing - object already exists, just clean up state
+        // Finish freehand drawing - save to database
+        const completedObject = drawingState.objects.find(obj => obj.id === currentFreehandId);
+        if (completedObject && onObjectCreated) {
+          onObjectCreated(completedObject).catch(error => {
+            console.error('Failed to save freehand object:', error);
+          });
+        }
+        
         setCurrentFreehandId(null);
         setIsDrawing(false);
         setDrawStart(null);
@@ -527,12 +555,19 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
           console.log('DELETE KEY: Deleting object', drawingState.selectedObjectIds[0]);
           // Delete the first selected object
           const objectToDelete = drawingState.selectedObjectIds[0];
+          
           setDrawingState(prev => ({
             ...prev,
             objects: prev.objects.filter(obj => obj.id !== objectToDelete),
             selectedObjectIds: prev.selectedObjectIds.filter(id => id !== objectToDelete)
           }));
           
+          // Delete from database immediately
+          if (onObjectDeleted) {
+            onObjectDeleted(objectToDelete).catch(error => {
+              console.error('Failed to delete object from database:', error);
+            });
+          }
         }
       }
     };
@@ -621,7 +656,19 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
           setIsDragging(false);
           setDragOffset({ x: 0, y: 0 });
         } else if (isDraggingObject) {
-          // Finish object dragging
+          // Finish object dragging - save position to database
+          if (draggedObjectId && onObjectUpdated) {
+            const draggedObject = drawingState.objects.find(obj => obj.id === draggedObjectId);
+            if (draggedObject) {
+              onObjectUpdated(draggedObjectId, {
+                x: draggedObject.x,
+                y: draggedObject.y
+              }).catch(error => {
+                console.error('Failed to save object position:', error);
+              });
+            }
+          }
+          
           setIsDraggingObject(false);
           setDraggedObjectId(null);
           setObjectDragStart(null);
@@ -704,6 +751,16 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
       objects: [...prev.objects, newFlashcardObject, newTranslationObject]
     }));
 
+    // Save both objects to database immediately
+    if (onObjectCreated) {
+      Promise.all([
+        onObjectCreated(newFlashcardObject),
+        onObjectCreated(newTranslationObject)
+      ]).catch(error => {
+        console.error('Failed to save flashcard objects:', error);
+      });
+    }
+
     setShowFlashcardPicker(false);
   }, [viewport]);
 
@@ -775,14 +832,24 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
   const handleDeleteObject = useCallback(() => {
     if (!contextMenu) return;
     
+    const objectId = contextMenu.objectId;
+    
     setDrawingState(prev => ({
       ...prev,
-      objects: prev.objects.filter(obj => obj.id !== contextMenu.objectId),
-      selectedObjectIds: prev.selectedObjectIds.filter(id => id !== contextMenu.objectId)
+      objects: prev.objects.filter(obj => obj.id !== objectId),
+      selectedObjectIds: prev.selectedObjectIds.filter(id => id !== objectId)
     }));
     
+    // Delete from database immediately
+    if (onObjectDeleted) {
+      onObjectDeleted(objectId).catch(error => {
+        console.error('Failed to delete object from database:', error);
+        // Optionally restore the object if delete failed
+      });
+    }
+    
     setContextMenu(null);
-  }, [contextMenu]);
+  }, [contextMenu, onObjectDeleted]);
 
   // Handle object updates (for text editing and other modifications)
   const handleObjectUpdate = useCallback((objectId: string, updates: Partial<DrawingObject>) => {
@@ -795,7 +862,13 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
       )
     }));
     
-  }, []);
+    // Save to database immediately
+    if (onObjectUpdated) {
+      onObjectUpdated(objectId, updates).catch(error => {
+        console.error('Failed to update object in database:', error);
+      });
+    }
+  }, [onObjectUpdated]);
 
   // Brush properties handlers
   const handleStrokeColorChange = useCallback((color: string) => {

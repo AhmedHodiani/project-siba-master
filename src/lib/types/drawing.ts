@@ -160,6 +160,22 @@ export function recordToCanvas(record: MovieCanvasRecord, objects: DrawingObject
  * Convert UI Drawing Object to Database Object Record data
  */
 export function drawingObjectToRecord(object: DrawingObject, canvasId: string): CreateCanvasObjectData {
+  // Special case for flashcards - only store flashcardId
+  if (object.type === 'flashcard') {
+    return {
+      canvas_id: canvasId,
+      type: object.type,
+      x: object.x,
+      y: object.y,
+      z_index: object.zIndex,
+      object_data: {
+        flashcardId: (object as FlashcardObject).flashcardId,
+      },
+      complexity_score: calculateComplexityScore(object),
+    };
+  }
+
+  // For all other object types, include common properties
   return {
     canvas_id: canvasId,
     type: object.type,
@@ -183,11 +199,6 @@ export function drawingObjectToRecord(object: DrawingObject, canvasId: string): 
         fontColor: (object as StickyNoteObject).fontColor,
         fontSize: (object as StickyNoteObject).fontSize,
       }),
-      ...(object.type === 'flashcard' && {
-        flashcardId: (object as FlashcardObject).flashcardId,
-        width: (object as FlashcardObject).width,
-        height: (object as FlashcardObject).height,
-      }),
       ...(object.type === 'translation' && {
         text: (object as TranslationObject).text,
         sourceLanguage: (object as TranslationObject).sourceLanguage,
@@ -204,6 +215,23 @@ export function drawingObjectToRecord(object: DrawingObject, canvasId: string): 
  * Convert Database Object Record to UI Drawing Object
  */
 export function recordToDrawingObject(record: CanvasObjectRecord): DrawingObject {
+  // Special case for flashcards - they don't have selected/style in object_data
+  if (record.type === 'flashcard') {
+    return {
+      id: record.id,
+      type: 'flashcard',
+      x: record.x,
+      y: record.y,
+      zIndex: record.z_index,
+      selected: false, // Default value since not stored
+      style: {}, // Default value since not stored
+      flashcardId: record.object_data.flashcardId ?? '',
+      width: 650, // Fixed width as defined in DrawingCanvas
+      height: 560, // Fixed height as defined in DrawingCanvas
+    } as FlashcardObject;
+  }
+
+  // For all other object types, include common properties from object_data
   const baseObject = {
     id: record.id,
     type: record.type,
@@ -233,15 +261,6 @@ export function recordToDrawingObject(record: CanvasObjectRecord): DrawingObject
         fontColor: record.object_data.fontColor ?? '#000000',
         fontSize: record.object_data.fontSize ?? 14,
       } as StickyNoteObject;
-
-    case 'flashcard':
-      return {
-        ...baseObject,
-        type: 'flashcard',
-        flashcardId: record.object_data.flashcardId ?? '',
-        width: record.object_data.width ?? 300,
-        height: record.object_data.height ?? 200,
-      } as FlashcardObject;
 
     case 'translation':
       return {
