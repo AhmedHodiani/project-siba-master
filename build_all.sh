@@ -247,7 +247,7 @@ if [[ "$PUBLISH" == "y" || "$PUBLISH" == "Y" ]]; then
     else
         export GH_TOKEN
         print_progress "Publishing release to GitHub..."
-        if npx electron-builder --publish always; then
+        if npx electron-builder --win --linux --publish always; then
             print_success "Successfully published to GitHub"
         else
             print_error "GitHub publishing failed"
