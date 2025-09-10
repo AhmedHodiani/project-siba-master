@@ -10,7 +10,8 @@ const movieCache = new Map<string, MovieRecord>();
 const loadingStates = new Map<string, Promise<any>>();
 
 interface FlashcardWidgetProps {
-  flashcardId: string; // Changed from flashcard object to just ID
+  flashcardId: string; // Database flashcard ID
+  objectId: string; // Drawing object ID for context menu
   x: number;
   y: number;
   width: number;
@@ -19,10 +20,15 @@ interface FlashcardWidgetProps {
   onSelect?: () => void;
   scale?: number; // For responsive scaling based on canvas zoom
   isDragging?: boolean; // Add dragging state
+  onContextMenu?: (e: React.MouseEvent, id: string) => void; // Add context menu support
+  onStartDrag?: (objectId: string, startPoint: { x: number; y: number }) => void; // Add drag support
+  viewport?: { x: number; y: number; zoom: number };
+  canvasSize?: { width: number; height: number };
 }
 
 export const FlashcardWidget: React.FC<FlashcardWidgetProps> = ({
   flashcardId,
+  objectId,
   x,
   y,
   width,
@@ -30,7 +36,11 @@ export const FlashcardWidget: React.FC<FlashcardWidgetProps> = ({
   selected = false,
   onSelect,
   scale = 1,
-  isDragging = false
+  isDragging = false,
+  onContextMenu,
+  onStartDrag,
+  viewport,
+  canvasSize
 }) => {
   const [flashcard, setFlashcard] = useState<FlashcardRecord | null>(null);
   const [movie, setMovie] = useState<MovieRecord | null>(null);
@@ -163,13 +173,42 @@ export const FlashcardWidget: React.FC<FlashcardWidgetProps> = ({
   };
 
   const handleClick = (e: React.MouseEvent) => {
-    // Don't stop propagation - let canvas handle selection and dragging
-    onSelect?.();
+    // Don't stop propagation - let canvas handle selection
+    // Only the foreignObject's onClick should handle selection to avoid conflicts
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Don't stop propagation - let canvas handle dragging
-    onSelect?.();
+    // Only handle left-clicks for dragging
+    if (e.button !== 0) {
+      return;
+    }
+
+    // Don't call onSelect here - let the foreignObject's onClick handle selection
+    // This prevents interference with multi-selection during drag operations
+    
+    // If we have a drag handler, prepare for dragging (like sticky note)
+    if (onStartDrag && viewport && canvasSize) {
+      // Get the mouse position relative to the canvas
+      const rect = (e.target as Element).closest('svg')?.getBoundingClientRect();
+      if (rect) {
+        const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        // Convert to world coordinates
+        const worldPoint = {
+          x: viewport.x + (screenPoint.x - canvasSize.width / 2) / viewport.zoom,
+          y: viewport.y + (screenPoint.y - canvasSize.height / 2) / viewport.zoom
+        };
+        
+        onStartDrag(objectId, worldPoint);
+      }
+    }
+  };
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onContextMenu && objectId) {
+      onContextMenu(e, objectId);
+    }
   };
 
   if (loading) {
@@ -185,6 +224,7 @@ export const FlashcardWidget: React.FC<FlashcardWidgetProps> = ({
         }}
         onClick={handleClick}
         onMouseDown={handleMouseDown}
+        onContextMenu={handleContextMenu}
       >
         Loading flashcard...
       </div>
@@ -204,6 +244,7 @@ export const FlashcardWidget: React.FC<FlashcardWidgetProps> = ({
         }}
         onClick={handleClick}
         onMouseDown={handleMouseDown}
+        onContextMenu={handleContextMenu}
       >
         Error loading flashcard data: {error}
       </div>
@@ -225,6 +266,7 @@ export const FlashcardWidget: React.FC<FlashcardWidgetProps> = ({
       }}
       onClick={handleClick}
       onMouseDown={handleMouseDown}
+      onContextMenu={handleContextMenu}
     >
       {/* Header with title and status */}
       <div className="flashcard-widget-header">

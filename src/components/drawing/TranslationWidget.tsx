@@ -8,6 +8,10 @@ interface TranslationWidgetProps {
   isDragging: boolean;
   onTextChange?: (text: string) => void;
   onLanguageChange?: (sourceLanguage: string, targetLanguage: string) => void;
+  onContextMenu?: (e: React.MouseEvent, id: string) => void;
+  onStartDrag?: (objectId: string, startPoint: { x: number; y: number }) => void;
+  viewport?: { x: number; y: number; zoom: number };
+  canvasSize?: { width: number; height: number };
 }
 
 export const TranslationWidget: React.FC<TranslationWidgetProps> = ({
@@ -16,6 +20,10 @@ export const TranslationWidget: React.FC<TranslationWidgetProps> = ({
   isDragging,
   onTextChange,
   onLanguageChange,
+  onContextMenu,
+  onStartDrag,
+  viewport,
+  canvasSize,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [tempText, setTempText] = useState(object.text);
@@ -47,6 +55,37 @@ export const TranslationWidget: React.FC<TranslationWidgetProps> = ({
     }
   };
 
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // Only handle left-clicks for dragging
+    if (e.button !== 0) {
+      return;
+    }
+
+    // Don't interfere with text editing
+    if (isEditing) {
+      return;
+    }
+
+    // Don't call any selection logic here - let the foreignObject's onClick handle selection
+    // This prevents interference with multi-selection during drag operations
+
+    // If we have a drag handler, prepare for dragging (like sticky note)
+    if (onStartDrag && viewport && canvasSize) {
+      // Get the mouse position relative to the canvas
+      const rect = (e.target as Element).closest('svg')?.getBoundingClientRect();
+      if (rect) {
+        const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        // Convert to world coordinates
+        const worldPoint = {
+          x: viewport.x + (screenPoint.x - canvasSize.width / 2) / viewport.zoom,
+          y: viewport.y + (screenPoint.y - canvasSize.height / 2) / viewport.zoom
+        };
+        
+        onStartDrag(object.id, worldPoint);
+      }
+    }
+  };
+
   const translationUrl = object.text 
     ? `https://www.bing.com/translator/?from=${object.sourceLanguage}&to=${object.targetLanguage}&text=${encodeURIComponent(object.text)}`
     : `https://www.bing.com/translator/?from=${object.sourceLanguage}&to=${object.targetLanguage}`;
@@ -60,7 +99,17 @@ export const TranslationWidget: React.FC<TranslationWidgetProps> = ({
         height={object.height}
         className={`translation-widget ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''}`}
       >
-        <div className="translation-widget-container">
+        <div 
+          className="translation-widget-container"
+          onMouseDown={handleMouseDown}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (onContextMenu) {
+              onContextMenu(e, object.id);
+            }
+          }}
+        >
           <div className="translation-header" style={{ zIndex: 30, position: 'relative' }}>
             <div className="language-controls">
               <span className="language-code">{object.sourceLanguage.toUpperCase()}</span>
@@ -104,6 +153,14 @@ export const TranslationWidget: React.FC<TranslationWidgetProps> = ({
                 className="translation-iframe"
                 title="Translation"
                 sandbox="allow-scripts allow-same-origin"
+                style={{ pointerEvents: 'auto' }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (onContextMenu) {
+                    onContextMenu(e, object.id);
+                  }
+                }}
               />
             </div>
           )}

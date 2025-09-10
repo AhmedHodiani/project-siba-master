@@ -9,6 +9,7 @@ import { FlashcardPickerDialog } from './FlashcardPickerDialog';
 import { ContextMenu } from './ContextMenu';
 import { BrushPropertiesPanel } from './BrushPropertiesPanel';
 import { StickyNotePropertiesPanel } from './StickyNotePropertiesPanel';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 import './DrawingCanvas.css';
 
 interface Viewport {
@@ -97,6 +98,8 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
   const [draggedObjectId, setDraggedObjectId] = useState<string | null>(null);
   const [objectDragStart, setObjectDragStart] = useState<Point | null>(null);
   const [objectOriginalPosition, setObjectOriginalPosition] = useState<Point | null>(null);
+  const [selectedObjectsOriginalPositions, setSelectedObjectsOriginalPositions] = useState<Map<string, Point>>(new Map());
+  const [selectedObjectsOriginalPoints, setSelectedObjectsOriginalPoints] = useState<Map<string, Point[]>>(new Map());
   const [showFlashcardPicker, setShowFlashcardPicker] = useState(false);
   const [flashcardPlacementPoint, setFlashcardPlacementPoint] = useState<Point | null>(null);
   const [currentFreehandId, setCurrentFreehandId] = useState<string | null>(null);
@@ -119,6 +122,11 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
   const [isCtrlPressed, setIsCtrlPressed] = useState(false);
   const [straightLineStart, setStraightLineStart] = useState<Point | null>(null); // Start point for straight line mode
 
+  // Rectangle selection state
+  const [isRectangleSelecting, setIsRectangleSelecting] = useState(false);
+  const [rectangleStart, setRectangleStart] = useState<Point | null>(null);
+  const [rectangleEnd, setRectangleEnd] = useState<Point | null>(null);
+
   // Keyboard event handling for Ctrl key
   
   // Context menu state
@@ -128,6 +136,15 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
     objectId: string;
     objectType: string;
   } | null>(null);
+  
+  // Confirmation dialog state
+  const [confirmDelete, setConfirmDelete] = useState<{
+    isOpen: boolean;
+    objectsToDelete: string[];
+  }>({
+    isOpen: false,
+    objectsToDelete: []
+  });
   
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -230,6 +247,11 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     // Close context menu on any click
     setContextMenu(null);
+    
+    if (e.button === 2) {
+      // Right click - this will be handled by onContextMenu event
+      return;
+    }
     
     if (e.button === 0) {
       const rect = svgRef.current?.getBoundingClientRect();
@@ -368,6 +390,12 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
   // Handle right-click context menu
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault(); // Prevent browser context menu
+    console.log('Main handleContextMenu called');
+    
+    // Only allow interactions in select mode
+    if (drawingState.selectedTool !== 'select') {
+      return;
+    }
     
     const rect = svgRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -375,13 +403,15 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
     const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     const worldPoint = DrawingUtils.screenToWorld(screenPoint, viewport, { width, height });
 
-    // Find object under cursor
+    // Check if there's an object under the cursor
     const hitObject = drawingState.objects
       .slice()
       .reverse() // Check top objects first
       .find(obj => DrawingUtils.isPointInObject(worldPoint, obj));
 
     if (hitObject) {
+      // Right-clicked on an object - show context menu
+      console.log('Right-clicked on object:', hitObject.id);
       // Select the object if not already selected
       if (!hitObject.selected) {
         setDrawingState(prev => ({
@@ -402,21 +432,27 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
         objectType: hitObject.type
       });
     } else {
-      // Close context menu if clicking on empty space
-      setContextMenu(null);
+      // Right-clicked on empty space - start rectangle selection
+      console.log('Right-clicked on empty space - starting rectangle selection');
+      setIsRectangleSelecting(true);
+      setRectangleStart(worldPoint);
+      setRectangleEnd(worldPoint);
+      setContextMenu(null); // Close any existing context menu
     }
-  }, [drawingState.objects, viewport, width, height]);
+  }, [drawingState.selectedTool, drawingState.objects, viewport, width, height]);
 
   // Handle object context menu (called from individual widgets)
   const handleObjectContextMenu = useCallback((e: React.MouseEvent, objectId: string) => {
     e.preventDefault();
     e.stopPropagation();
+    console.log('Object handleContextMenu called for:', objectId);
     
     // Find the object
     const obj = drawingState.objects.find(o => o.id === objectId);
     if (!obj) return;
     
-    // Select the object if not already selected
+    // Only change selection if the object is not already selected
+    // This preserves multi-selection when right-clicking on already selected objects
     if (!obj.selected) {
       setDrawingState(prev => ({
         ...prev,
@@ -439,31 +475,18 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
 
   // Handle mouse move - update drag offset, preview drawing, or move objects
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (isDragging) {
-      const deltaX = e.clientX - dragStart.x;
-      const deltaY = e.clientY - dragStart.y;
-      setDragOffset({ x: deltaX, y: deltaY });
-    } else if (isDraggingObject && draggedObjectId && objectDragStart && objectOriginalPosition) {
+    if (isRectangleSelecting && rectangleStart) {
+      // Update rectangle selection end point
       const rect = svgRef.current?.getBoundingClientRect();
       if (!rect) return;
 
       const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
       const worldPoint = DrawingUtils.screenToWorld(screenPoint, viewport, { width, height });
-      
-      // Calculate total delta from original start position
-      const totalDeltaX = worldPoint.x - objectDragStart.x;
-      const totalDeltaY = worldPoint.y - objectDragStart.y;
-
-      setDrawingState(prev => ({
-        ...prev,
-        objects: prev.objects.map(obj => 
-          obj.id === draggedObjectId 
-            ? { ...obj, x: objectOriginalPosition.x + totalDeltaX, y: objectOriginalPosition.y + totalDeltaY }
-            : obj
-        )
-      }));
-
-      // Don't update objectDragStart - keep it fixed at the original drag start position
+      setRectangleEnd(worldPoint);
+    } else if (isDragging) {
+      const deltaX = e.clientX - dragStart.x;
+      const deltaY = e.clientY - dragStart.y;
+      setDragOffset({ x: deltaX, y: deltaY });
     } else if (isDrawing && currentFreehandId && drawingState.selectedTool === 'freehand') {
       // Add point to current freehand path
       const rect = svgRef.current?.getBoundingClientRect();
@@ -507,11 +530,53 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
       }
     }
     // Drawing preview could be handled here in the future
-  }, [isDragging, isDraggingObject, draggedObjectId, objectDragStart, objectOriginalPosition, dragStart, viewport, width, height, isDrawing, currentFreehandId, drawingState.selectedTool, isCtrlPressed, straightLineStart]);
+  }, [isRectangleSelecting, rectangleStart, viewport, width, height, isDragging, dragStart, isDrawing, currentFreehandId, drawingState.selectedTool, isCtrlPressed, straightLineStart]);
 
   // Handle mouse up - commit drag movement, create object, or finish object drag
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
-    if (isDragging) {
+    if (isRectangleSelecting && rectangleStart && rectangleEnd) {
+      // Complete rectangle selection
+      const minX = Math.min(rectangleStart.x, rectangleEnd.x);
+      const maxX = Math.max(rectangleStart.x, rectangleEnd.x);
+      const minY = Math.min(rectangleStart.y, rectangleEnd.y);
+      const maxY = Math.max(rectangleStart.y, rectangleEnd.y);
+
+      // Check if this was just a click (no drag) or an actual rectangle selection
+      const isClick = Math.abs(rectangleEnd.x - rectangleStart.x) < 5 && Math.abs(rectangleEnd.y - rectangleStart.y) < 5;
+      
+      if (isClick) {
+        // Just a right-click, clear selection
+        setDrawingState(prev => ({
+          ...prev,
+          selectedObjectIds: [],
+          objects: prev.objects.map(obj => ({
+            ...obj,
+            selected: false
+          }))
+        }));
+      } else {
+        // Find all objects that intersect with the rectangle
+        const selectedObjects = drawingState.objects.filter(obj => {
+          return DrawingUtils.isObjectInRectangle(obj, minX, minY, maxX, maxY);
+        });
+
+        // Update selection state
+        const selectedIds = selectedObjects.map(obj => obj.id);
+        setDrawingState(prev => ({
+          ...prev,
+          selectedObjectIds: selectedIds,
+          objects: prev.objects.map(obj => ({
+            ...obj,
+            selected: selectedIds.includes(obj.id)
+          }))
+        }));
+      }
+
+      // Reset rectangle selection state
+      setIsRectangleSelecting(false);
+      setRectangleStart(null);
+      setRectangleEnd(null);
+    } else if (isDragging) {
       // Commit canvas pan
       const scaleFactorX = viewBoxWidth / width;
       const scaleFactorY = viewBoxHeight / height;
@@ -523,12 +588,6 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
       
       setIsDragging(false);
       setDragOffset({ x: 0, y: 0 });
-    } else if (isDraggingObject) {
-      // Finish object dragging
-      setIsDraggingObject(false);
-      setDraggedObjectId(null);
-      setObjectDragStart(null);
-      setObjectOriginalPosition(null);
     } else if (isDrawing && drawStart) {
       if (drawingState.selectedTool === 'freehand' && currentFreehandId) {
         // Finish freehand drawing - save to database
@@ -555,47 +614,84 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
       }
       // Remove creation logic for other drawing tools since they're no longer supported
     }
-  }, [isDragging, isDraggingObject, isDrawing, drawStart, dragOffset, viewBoxWidth, viewBoxHeight, width, height, viewport, drawingState.selectedTool, currentFreehandId]);
+  }, [isRectangleSelecting, rectangleStart, rectangleEnd, drawingState.objects, isDragging, isDrawing, drawStart, dragOffset, viewBoxWidth, viewBoxHeight, width, height, viewport, drawingState.selectedTool, currentFreehandId]);
 
   // Global mouse events
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only allow Delete key (not Backspace) and only when not editing text
-      if (e.key === 'Delete') {
-        // Check if user is editing text (input, textarea, or contenteditable)
-        const activeElement = document.activeElement;
-        const isEditingText = activeElement && (
-          activeElement.tagName === 'INPUT' ||
-          activeElement.tagName === 'TEXTAREA' ||
-          activeElement.getAttribute('contenteditable') === 'true'
-        );
+      // Check if user is editing text (input, textarea, or contenteditable)
+      const activeElement = document.activeElement;
+      const isEditingText = activeElement && (
+        activeElement.tagName === 'INPUT' ||
+        activeElement.tagName === 'TEXTAREA' ||
+        activeElement.getAttribute('contenteditable') === 'true'
+      );
+
+      // ESC key - switch to select tool (always, even when editing text)
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        console.log('ESC KEY: Switching to select tool');
+        setDrawingState(prev => ({
+          ...prev,
+          selectedTool: 'select'
+        }));
         
-        if (!isEditingText && drawingState.selectedObjectIds.length > 0) {
+        // Also clear any ongoing drawing or selection operations
+        setIsDrawing(false);
+        setCurrentFreehandId(null);
+        setDrawStart(null);
+        setStraightLineStart(null);
+        setIsRectangleSelecting(false);
+        setRectangleStart(null);
+        setRectangleEnd(null);
+        setContextMenu(null);
+        return;
+      }
+
+      // Tool shortcuts (only when not editing text)
+      if (!isEditingText) {
+        // F key - switch to freehand tool
+        if (e.key === 'f' || e.key === 'F') {
           e.preventDefault();
-          console.log('DELETE KEY: Deleting object', drawingState.selectedObjectIds[0]);
-          // Delete the first selected object
-          const objectToDelete = drawingState.selectedObjectIds[0];
-          
+          console.log('F KEY: Switching to freehand tool');
           setDrawingState(prev => ({
             ...prev,
-            objects: prev.objects.filter(obj => obj.id !== objectToDelete),
-            selectedObjectIds: prev.selectedObjectIds.filter(id => id !== objectToDelete)
+            selectedTool: 'freehand'
           }));
+          return;
+        }
+
+        // S key - switch to sticky-note tool
+        if (e.key === 's' || e.key === 'S') {
+          e.preventDefault();
+          console.log('S KEY: Switching to sticky-note tool');
+          setDrawingState(prev => ({
+            ...prev,
+            selectedTool: 'sticky-note'
+          }));
+          return;
+        }
+      }
+
+      // Only allow Delete key (not Backspace) and only when not editing text
+      if (e.key === 'Delete') {
+        if (!isEditingText && drawingState.selectedObjectIds.length > 0) {
+          e.preventDefault();
+          console.log('DELETE KEY: Showing confirmation for objects', drawingState.selectedObjectIds);
           
-          // Delete from database immediately
-          if (onObjectDeleted) {
-            onObjectDeleted(objectToDelete).catch(error => {
-              console.error('Failed to delete object from database:', error);
-            });
-          }
+          // Show confirmation dialog for selected objects
+          setConfirmDelete({
+            isOpen: true,
+            objectsToDelete: [...drawingState.selectedObjectIds]
+          });
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [drawingState.selectedObjectIds]);
+  }, [drawingState.selectedObjectIds, onObjectDeleted]);
 
   // Ctrl key detection for straight line drawing
   useEffect(() => {
@@ -636,8 +732,6 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
   useEffect(() => {
     // Only handle canvas panning events here, object dragging is handled in handleObjectDragStart
     if (isDragging) {
-      console.log('Setting up canvas pan events');
-      
       const handleGlobalMouseMove = (e: MouseEvent) => {
         const deltaX = e.clientX - dragStart.x;
         const deltaY = e.clientY - dragStart.y;
@@ -798,101 +892,233 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
   const handleObjectDragStart = useCallback((objectId: string, startPoint: Point) => {
     console.log('=== DRAG START ===', { objectId, startPoint });
     const draggedObject = drawingState.objects.find(obj => obj.id === objectId);
-    if (draggedObject) {
-      console.log('Setting drag state for object:', objectId, draggedObject);
-      setIsDraggingObject(true);
-      setDraggedObjectId(objectId);
-      setObjectDragStart(startPoint);
-      setObjectOriginalPosition({ x: draggedObject.x, y: draggedObject.y });
-      console.log('Drag state set - isDraggingObject: true, draggedObjectId:', objectId);
-      
-      // Set up global mouse events immediately using direct event listeners
-      const handleGlobalMouseMove = (e: MouseEvent) => {
-        const rect = svgRef.current?.getBoundingClientRect();
-        if (!rect) return;
-
-        const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-        const worldPoint = DrawingUtils.screenToWorld(screenPoint, viewport, { width, height });
-        
-        // Calculate total delta from original start position
-        const totalDeltaX = worldPoint.x - startPoint.x;
-        const totalDeltaY = worldPoint.y - startPoint.y;
-
-        setDrawingState(prev => ({
-          ...prev,
-          objects: prev.objects.map(obj => 
-            obj.id === objectId 
-              ? { ...obj, x: draggedObject.x + totalDeltaX, y: draggedObject.y + totalDeltaY }
-              : obj
-          )
-        }));
-      };
-
-      const handleGlobalMouseUp = () => {
-        console.log('=== GLOBAL MOUSE UP EVENT ===');
-        console.log('Saving object position for:', objectId);
-        
-        // Save position to database
-        if (onObjectUpdated) {
-          const currentObject = drawingStateRef.current.objects.find(obj => obj.id === objectId);
-          if (currentObject) {
-            console.log('Saving position:', { id: objectId, x: currentObject.x, y: currentObject.y });
-            onObjectUpdated(objectId, {
-              x: currentObject.x,
-              y: currentObject.y
-            }).catch(error => {
-              console.error('Failed to save object position:', error);
-            });
-          }
-        }
-        
-        // Clean up drag state
-        setIsDraggingObject(false);
-        setDraggedObjectId(null);
-        setObjectDragStart(null);
-        setObjectOriginalPosition(null);
-        
-        // Remove event listeners
-        document.removeEventListener('mousemove', handleGlobalMouseMove);
-        document.removeEventListener('mouseup', handleGlobalMouseUp);
-      };
-
-      // Add event listeners
-      console.log('Adding global event listeners for drag');
-      document.addEventListener('mousemove', handleGlobalMouseMove);
-      document.addEventListener('mouseup', handleGlobalMouseUp);
-    } else {
+    if (!draggedObject) {
       console.error('Could not find object to drag:', objectId);
+      return;
     }
-  }, [drawingState.objects, viewport, width, height, onObjectUpdated]);
+
+    // If the clicked object is not selected, select it first
+    const isObjectSelected = drawingState.selectedObjectIds.includes(objectId);
+    let objectsToMove = drawingState.selectedObjectIds;
+    
+    if (!isObjectSelected) {
+      // Select the clicked object and deselect others
+      objectsToMove = [objectId];
+      setDrawingState(prev => ({
+        ...prev,
+        selectedObjectIds: [objectId],
+        objects: prev.objects.map(obj => ({
+          ...obj,
+          selected: obj.id === objectId
+        }))
+      }));
+    }
+
+    // Store original positions for all objects that will be moved
+    const originalPositions = new Map<string, Point>();
+    const originalPoints = new Map<string, Point[]>();
+    drawingState.objects.forEach(obj => {
+      if (objectsToMove.includes(obj.id)) {
+        originalPositions.set(obj.id, { x: obj.x, y: obj.y });
+        if (obj.type === 'freehand') {
+          const freehandObj = obj as any;
+          originalPoints.set(obj.id, [...(freehandObj.points || [])]);
+        }
+      }
+    });
+
+    console.log('Setting drag state for objects:', objectsToMove);
+    setIsDraggingObject(true);
+    setDraggedObjectId(objectId); // Keep track of which object was clicked
+    setObjectDragStart(startPoint);
+    setSelectedObjectsOriginalPositions(originalPositions);
+    setSelectedObjectsOriginalPoints(originalPoints);
+    console.log('Drag state set - isDraggingObject: true, moving objects:', objectsToMove.length);
+    
+    // Set up global mouse events immediately using direct event listeners
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      const rect = svgRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const worldPoint = DrawingUtils.screenToWorld(screenPoint, viewport, { width, height });
+      
+      // Calculate total delta from original start position
+      const totalDeltaX = worldPoint.x - startPoint.x;
+      const totalDeltaY = worldPoint.y - startPoint.y;
+
+      // Move all selected objects by the same delta
+      setDrawingState(prev => ({
+        ...prev,
+        objects: prev.objects.map(obj => {
+          if (objectsToMove.includes(obj.id)) {
+            const originalPos = originalPositions.get(obj.id);
+            if (originalPos) {
+              if (obj.type === 'freehand') {
+                // For freehand objects, move all points by the delta from their original positions
+                const originalPointsArray = originalPoints.get(obj.id);
+                if (originalPointsArray) {
+                  return {
+                    ...obj,
+                    x: originalPos.x + totalDeltaX,
+                    y: originalPos.y + totalDeltaY,
+                    points: originalPointsArray.map((point: Point) => ({
+                      x: point.x + totalDeltaX,
+                      y: point.y + totalDeltaY
+                    }))
+                  };
+                }
+              } else {
+                // For regular objects, just move x, y
+                return { ...obj, x: originalPos.x + totalDeltaX, y: originalPos.y + totalDeltaY };
+              }
+            }
+          }
+          return obj;
+        })
+      }));
+    };
+
+    const handleGlobalMouseUp = () => {
+      console.log('=== GLOBAL MOUSE UP EVENT ===');
+      console.log('Saving positions for objects:', objectsToMove);
+      
+      // Save positions to database for all moved objects
+      if (onObjectUpdated) {
+        objectsToMove.forEach(objId => {
+          const currentObject = drawingStateRef.current.objects.find(obj => obj.id === objId);
+          if (currentObject) {
+            console.log('Saving position:', { id: objId, x: currentObject.x, y: currentObject.y });
+            
+            if (currentObject.type === 'freehand') {
+              // For freehand objects, save both position and updated points
+              const freehandObj = currentObject as any;
+              onObjectUpdated(objId, {
+                x: currentObject.x,
+                y: currentObject.y,
+                points: freehandObj.points
+              }).catch(error => {
+                console.error('Failed to save freehand object:', error);
+              });
+            } else {
+              // For regular objects, just save position
+              onObjectUpdated(objId, {
+                x: currentObject.x,
+                y: currentObject.y
+              }).catch(error => {
+                console.error('Failed to save object position:', error);
+              });
+            }
+          }
+        });
+      }
+      
+      // Clean up drag state
+      setIsDraggingObject(false);
+      setDraggedObjectId(null);
+      setObjectDragStart(null);
+      setSelectedObjectsOriginalPositions(new Map());
+      setSelectedObjectsOriginalPoints(new Map());
+      
+      // Remove event listeners
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+
+    // Add event listeners
+    console.log('Adding global event listeners for drag');
+    document.addEventListener('mousemove', handleGlobalMouseMove);
+    document.addEventListener('mouseup', handleGlobalMouseUp);
+  }, [drawingState.objects, drawingState.selectedObjectIds, viewport, width, height, onObjectUpdated]);
 
   // Handle context menu close
   const handleContextMenuClose = useCallback(() => {
     setContextMenu(null);
   }, []);
 
+  // Confirm delete function
+  const confirmDeleteObjects = useCallback(async () => {
+    console.log('CONFIRMING DELETE: Deleting objects', confirmDelete.objectsToDelete);
+    
+    // Delete all objects from state
+    setDrawingState(prev => ({
+      ...prev,
+      objects: prev.objects.filter(obj => !confirmDelete.objectsToDelete.includes(obj.id)),
+      selectedObjectIds: []
+    }));
+    
+    // Close confirmation dialog
+    setConfirmDelete({ isOpen: false, objectsToDelete: [] });
+    
+    // Close context menu
+    setContextMenu(null);
+    
+    // Delete from database immediately
+    if (onObjectDeleted) {
+      confirmDelete.objectsToDelete.forEach(objectId => {
+        onObjectDeleted(objectId).catch(error => {
+          console.error('Failed to delete object from database:', error);
+        });
+      });
+    }
+  }, [confirmDelete.objectsToDelete, onObjectDeleted]);
+
   // Handle object delete
   const handleDeleteObject = useCallback(() => {
     if (!contextMenu) return;
     
-    const objectId = contextMenu.objectId;
+    const contextObjectId = contextMenu.objectId;
     
+    // Determine which objects to delete: if the right-clicked object is selected,
+    // delete all selected objects; otherwise, delete just the right-clicked object
+    let objectsToDelete: string[];
+    if (drawingState.selectedObjectIds.includes(contextObjectId)) {
+      // Right-clicked object is part of selection - delete all selected objects
+      objectsToDelete = [...drawingState.selectedObjectIds];
+    } else {
+      // Right-clicked object is not selected - delete just this object
+      objectsToDelete = [contextObjectId];
+    }
+    
+    // Show confirmation dialog
+    setConfirmDelete({
+      isOpen: true,
+      objectsToDelete
+    });
+    
+    setContextMenu(null);
+  }, [contextMenu, drawingState.selectedObjectIds]);
+
+  // Handle confirmed deletion
+  const handleConfirmDelete = useCallback(() => {
+    const { objectsToDelete } = confirmDelete;
+    
+    if (objectsToDelete.length === 0) return;
+    
+    // Remove objects from state
     setDrawingState(prev => ({
       ...prev,
-      objects: prev.objects.filter(obj => obj.id !== objectId),
-      selectedObjectIds: prev.selectedObjectIds.filter(id => id !== objectId)
+      objects: prev.objects.filter(obj => !objectsToDelete.includes(obj.id)),
+      selectedObjectIds: prev.selectedObjectIds.filter(id => !objectsToDelete.includes(id))
     }));
     
-    // Delete from database immediately
+    // Delete from database
     if (onObjectDeleted) {
-      onObjectDeleted(objectId).catch(error => {
-        console.error('Failed to delete object from database:', error);
-        // Optionally restore the object if delete failed
+      objectsToDelete.forEach(objectId => {
+        onObjectDeleted(objectId).catch(error => {
+          console.error('Failed to delete object from database:', error);
+        });
       });
     }
     
-    setContextMenu(null);
-  }, [contextMenu, onObjectDeleted]);
+    // Close confirmation dialog
+    setConfirmDelete({ isOpen: false, objectsToDelete: [] });
+  }, [confirmDelete, onObjectDeleted]);
+
+  // Handle cancel deletion
+  const handleCancelDelete = useCallback(() => {
+    setConfirmDelete({ isOpen: false, objectsToDelete: [] });
+  }, []);
 
   // Handle object updates (for text editing and other modifications)
   const handleObjectUpdate = useCallback((objectId: string, updates: Partial<DrawingObject>) => {
@@ -1050,9 +1276,11 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
         <div>Position: ({Math.round(viewport.x)}, {Math.round(viewport.y)})</div>
         <div>Tool: {drawingState.selectedTool}</div>
         <div>Objects: {drawingState.objects.length}</div>
-        {isDragging && <div>Panning...</div>}
-        {isDraggingObject && <div>Moving object...</div>}
-        {isDrawing && <div>Drawing...</div>}
+        <div>Selected: {drawingState.selectedObjectIds.length}</div>
+        {/* {isDragging && <div>Panning...</div>} */}
+        {/* {isDraggingObject && <div>Moving {drawingState.selectedObjectIds.length} object(s)...</div>} */}
+        {/* {isDrawing && <div>Drawing...</div>} */}
+        {/* {isRectangleSelecting && <div>Selecting...</div>} */}
       </div>
 
       {/* SVG Canvas */}
@@ -1067,7 +1295,8 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
         onMouseUp={handleMouseUp}
         onContextMenu={handleContextMenu}
         style={{
-          cursor: isDraggingObject ? 'grabbing' :
+          cursor: isRectangleSelecting ? 'crosshair' :
+                  isDraggingObject ? 'grabbing' :
                   drawingState.selectedTool === 'select' 
                     ? (isDragging ? 'grabbing' : 'grab')
                     : 'crosshair',
@@ -1174,6 +1403,20 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
               onMove={handleObjectMove}
             />
           ))}
+
+        {/* Rectangle selection visual */}
+        {isRectangleSelecting && rectangleStart && rectangleEnd && (
+          <rect
+            x={Math.min(rectangleStart.x, rectangleEnd.x)}
+            y={Math.min(rectangleStart.y, rectangleEnd.y)}
+            width={Math.abs(rectangleEnd.x - rectangleStart.x)}
+            height={Math.abs(rectangleEnd.y - rectangleStart.y)}
+            fill="rgba(0, 122, 204, 0.2)"
+            stroke="#007acc"
+            strokeWidth={2}
+            strokeDasharray="5,5"
+          />
+        )}
       </svg>
 
       {/* Flashcard Picker Dialog */}
@@ -1194,6 +1437,31 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
         onClose={handleContextMenuClose}
         onDelete={handleDeleteObject}
         objectType={contextMenu?.objectType || 'object'}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDelete.isOpen}
+        title="Confirm Deletion"
+        message={`Are you sure you want to delete ${confirmDelete.objectsToDelete.length === 1 ? 'this object' : `these ${confirmDelete.objectsToDelete.length} objects`}?`}
+        details={confirmDelete.objectsToDelete.map(objectId => {
+          const obj = drawingState.objects.find(o => o.id === objectId);
+          if (obj?.type === 'sticky-note') {
+            const objData = obj as any;
+            return `Sticky Note: "${objData.text || 'Untitled'}"`;
+          } else if (obj?.type === 'freehand') {
+            const objData = obj as any;
+            return `Freehand Drawing (${objData.points?.length || 0} points)`;
+          } else if (obj?.type === 'flashcard') {
+            return `Flashcard`;
+          } else if (obj?.type === 'translation') {
+            return `Translation`;
+          }
+          return `Object: ${objectId}`;
+        })}
+        onConfirm={confirmDeleteObjects}
+        onCancel={() => setConfirmDelete({ isOpen: false, objectsToDelete: [] })}
+        variant="danger"
       />
     </div>
   );

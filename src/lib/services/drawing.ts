@@ -172,6 +172,18 @@ export class DrawingUtils {
     );
   }
 
+  // Check if object intersects with rectangle (for rectangle selection)
+  static isObjectInRectangle(obj: DrawingObject, rectMinX: number, rectMinY: number, rectMaxX: number, rectMaxY: number): boolean {
+    const bounds = this.getBounds(obj);
+    const objMinX = bounds.x;
+    const objMinY = bounds.y;
+    const objMaxX = bounds.x + bounds.width;
+    const objMaxY = bounds.y + bounds.height;
+
+    // Check if rectangles intersect (not just if object center is inside selection)
+    return !(objMaxX < rectMinX || objMinX > rectMaxX || objMaxY < rectMinY || objMinY > rectMaxY);
+  }
+
   // Sort objects by z-index for proper rendering order
   static sortByZIndex(objects: DrawingObject[]): DrawingObject[] {
     return [...objects].sort((a, b) => a.zIndex - b.zIndex);

@@ -11,12 +11,12 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
   selectedTool,
   onToolSelect
 }) => {
-  const tools: { type: ToolType; label: string; icon: string }[] = [
-    { type: 'select', label: 'Select', icon: '↖' },
-    { type: 'freehand', label: 'Freehand', icon: '✏️' },
+  const tools: { type: ToolType; label: string; icon: string; shortcut?: string }[] = [
+    { type: 'select', label: 'Select', icon: '↖', shortcut: 'ESC' },
+    { type: 'freehand', label: 'Freehand', icon: '✏️', shortcut: 'F' },
     { type: 'flashcard', label: 'Flashcard', icon: '📇' },
     { type: 'translation', label: 'Translation', icon: '🌐' },
-    { type: 'sticky-note', label: 'Sticky Note', icon: '📝' }
+    { type: 'sticky-note', label: 'Sticky Note', icon: '📝', shortcut: 'S' }
   ];
 
   return (
@@ -28,10 +28,13 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
             key={tool.type}
             className={`tool-button ${selectedTool === tool.type ? 'active' : ''}`}
             onClick={() => onToolSelect(tool.type)}
-            title={tool.label}
+            title={`${tool.label}${tool.shortcut ? ` (${tool.shortcut})` : ''}`}
           >
             <span className="tool-icon">{tool.icon}</span>
             <span className="tool-label">{tool.label}</span>
+            {tool.shortcut && (
+              <span className="tool-shortcut">{tool.shortcut}</span>
+            )}
           </button>
         ))}
       </div>

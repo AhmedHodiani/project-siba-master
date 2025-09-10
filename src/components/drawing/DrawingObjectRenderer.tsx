@@ -30,8 +30,16 @@ export const DrawingObjectRenderer: React.FC<DrawingObjectRendererProps> = ({
   currentTool
 }) => {
   const handleClick = (e: React.MouseEvent) => {
+    // Don't handle selection on right-clicks - let context menu handle it
+    if (e.button === 2) {
+      return;
+    }
+    
     e.stopPropagation();
-    if (onSelect) {
+    
+    // Only select the object if it's not already selected
+    // This preserves multi-selection during drag operations
+    if (!object.selected && onSelect) {
       onSelect(object.id);
     }
   };
@@ -55,36 +63,6 @@ export const DrawingObjectRenderer: React.FC<DrawingObjectRendererProps> = ({
     case 'flashcard':
       const flashcardObj = object as FlashcardObject;
       
-      // Special handling for flashcard mouse events to enable dragging
-      const handleFlashcardMouseDown = (e: React.MouseEvent) => {
-        // If freehand tool is active, don't intercept the event - let it bubble up for drawing
-        if (currentTool === 'freehand') {
-          return; // Don't stop propagation, let the canvas handle drawing
-        }
-        
-        e.stopPropagation();
-        e.preventDefault();
-        
-        // Select the object first
-        if (onSelect) {
-          onSelect(object.id);
-        }
-        
-        // Get the mouse position relative to the canvas
-        const rect = (e.target as Element).closest('svg')?.getBoundingClientRect();
-        if (rect && viewport && canvasSize && onStartDrag) {
-          const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-          // Convert to world coordinates
-          const worldPoint = {
-            x: viewport.x + (screenPoint.x - canvasSize.width / 2) / viewport.zoom,
-            y: viewport.y + (screenPoint.y - canvasSize.height / 2) / viewport.zoom
-          };
-          
-          // Start dragging
-          onStartDrag(object.id, worldPoint);
-        }
-      };
-      
       return (
         <foreignObject
           x={object.x}
@@ -96,11 +74,11 @@ export const DrawingObjectRenderer: React.FC<DrawingObjectRendererProps> = ({
             overflow: 'visible',
             pointerEvents: currentTool === 'freehand' ? 'none' : 'all'
           }}
-          onMouseDown={handleFlashcardMouseDown}
           onClick={handleClick}
         >
           <FlashcardWidget
             flashcardId={flashcardObj.flashcardId}
+            objectId={object.id}
             x={0}
             y={0}
             width={object.width}
@@ -109,6 +87,10 @@ export const DrawingObjectRenderer: React.FC<DrawingObjectRendererProps> = ({
             onSelect={() => {}} // Handled by foreignObject
             scale={1} // foreignObject already handles SVG scaling
             isDragging={isDragging && draggedObjectId === object.id}
+            onContextMenu={onContextMenu}
+            onStartDrag={onStartDrag}
+            viewport={viewport}
+            canvasSize={canvasSize}
           />
         </foreignObject>
       );
@@ -116,36 +98,6 @@ export const DrawingObjectRenderer: React.FC<DrawingObjectRendererProps> = ({
     case 'translation':
       const translationObj = object as TranslationObject;
       
-      // Special handling for translation widget mouse events to enable dragging
-      const handleTranslationMouseDown = (e: React.MouseEvent) => {
-        // If freehand tool is active, don't intercept the event - let it bubble up for drawing
-        if (currentTool === 'freehand') {
-          return; // Don't stop propagation, let the canvas handle drawing
-        }
-        
-        e.stopPropagation();
-        e.preventDefault();
-        
-        // Select the object first
-        if (onSelect) {
-          onSelect(object.id);
-        }
-        
-        // Get the mouse position relative to the canvas
-        const rect = (e.target as Element).closest('svg')?.getBoundingClientRect();
-        if (rect && viewport && canvasSize && onStartDrag) {
-          const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-          // Convert to world coordinates
-          const worldPoint = {
-            x: viewport.x + (screenPoint.x - canvasSize.width / 2) / viewport.zoom,
-            y: viewport.y + (screenPoint.y - canvasSize.height / 2) / viewport.zoom
-          };
-          
-          // Start dragging
-          onStartDrag(object.id, worldPoint);
-        }
-      };
-
       const handleTextChange = (text: string) => {
         if (onUpdate) {
           onUpdate(object.id, { text } as Partial<DrawingObject>);
@@ -169,7 +121,6 @@ export const DrawingObjectRenderer: React.FC<DrawingObjectRendererProps> = ({
             overflow: 'visible',
             pointerEvents: currentTool === 'freehand' ? 'none' : 'all'
           }}
-          onMouseDown={handleTranslationMouseDown}
           onClick={handleClick}
         >
           <TranslationWidget
@@ -178,6 +129,10 @@ export const DrawingObjectRenderer: React.FC<DrawingObjectRendererProps> = ({
             isDragging={isDragging && draggedObjectId === object.id}
             onTextChange={handleTextChange}
             onLanguageChange={handleLanguageChange}
+            onContextMenu={onContextMenu}
+            onStartDrag={onStartDrag}
+            viewport={viewport}
+            canvasSize={canvasSize}
           />
         </foreignObject>
       );
@@ -212,45 +167,6 @@ export const DrawingObjectRenderer: React.FC<DrawingObjectRendererProps> = ({
     case 'sticky-note':
       const stickyNoteObj = object as StickyNoteObject;
       
-      // Special handling for sticky note mouse events to enable dragging
-      const handleStickyNoteMouseDown = (e: React.MouseEvent) => {
-        console.log('Foreign object mousedown, target:', e.target);
-        // Check if this is a resize handle click
-        const target = e.target as HTMLElement;
-        if (target.classList.contains('resize-handle')) {
-          console.log('Resize handle detected, not interfering');
-          // Don't stop propagation for resize handles
-          return;
-        }
-        
-        // If freehand tool is active, don't intercept the event - let it bubble up for drawing
-        if (currentTool === 'freehand') {
-          return; // Don't stop propagation, let the canvas handle drawing
-        }
-        
-        e.stopPropagation();
-        e.preventDefault();
-        
-        // Select the object first
-        if (onSelect) {
-          onSelect(object.id);
-        }
-        
-        // Get the mouse position relative to the canvas
-        const rect = (e.target as Element).closest('svg')?.getBoundingClientRect();
-        if (rect && viewport && canvasSize && onStartDrag) {
-          const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-          // Convert to world coordinates
-          const worldPoint = {
-            x: viewport.x + (screenPoint.x - canvasSize.width / 2) / viewport.zoom,
-            y: viewport.y + (screenPoint.y - canvasSize.height / 2) / viewport.zoom
-          };
-          
-          // Start dragging
-          onStartDrag(object.id, worldPoint);
-        }
-      };
-
       const handleStickyNoteUpdate = (id: string, updates: Partial<StickyNoteObject>) => {
         if (onUpdate) {
           onUpdate(id, updates as Partial<DrawingObject>);
