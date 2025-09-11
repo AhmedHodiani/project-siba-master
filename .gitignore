@@ -30,4 +30,5 @@ npm-debug.log.*
 *.sass.d.ts
 *.scss.d.ts
 
-pocketbase/pb_data
+pocketbase/pb_data/*
+assets/pocketbase/pb_data/
