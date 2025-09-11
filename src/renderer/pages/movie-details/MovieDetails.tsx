@@ -645,6 +645,20 @@ export const MovieDetails: React.FC = () => {
     }
   }, [loadFlashcards]);
 
+  const handleResetAllFlashcardsFSRS = useCallback(async () => {
+    try {
+      if (!movie) return;
+      
+      const resetCount = await pocketBaseService.resetAllFlashcardsFSRS(movie.id);
+      await loadFlashcards(); // Reload flashcards to show updated state
+      
+      console.log(`✅ Successfully reset ${resetCount} flashcards`);
+    } catch (error) {
+      console.error('Error resetting all FSRS metrics:', error);
+      throw error;
+    }
+  }, [movie, loadFlashcards]);
+
   // Mastery checking logic
   const isCardMastered = useCallback((card: FlashcardRecord, threshold?: { minStability: number; requiredState: 'Review' | 'any'; maxDifficulty?: number }) => {
     if (!threshold) {
@@ -1768,6 +1782,7 @@ export const MovieDetails: React.FC = () => {
           onDelete={handleDeleteFlashcard}
           onReview={handleReviewFlashcard}
           onResetFSRS={handleResetFlashcardFSRS}
+          onResetAllFSRS={handleResetAllFlashcardsFSRS}
           onJumpToTime={handleJumpToTime}
           loading={flashcardsLoading}
         />

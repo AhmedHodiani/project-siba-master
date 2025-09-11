@@ -476,6 +476,40 @@ class PocketBaseService {
     return this.updateFlashcard(id, resetData);
   }
 
+  // Reset FSRS metrics for all flashcards of a specific movie
+  async resetAllFlashcardsFSRS(movieId: string): Promise<number> {
+    const pb = await this.getPocketBase();
+    
+    // Import ts-fsrs dynamically to get initial values
+    const { createEmptyCard } = await import('ts-fsrs');
+    
+    // Create fresh FSRS card with initial values
+    const fsrsCard = createEmptyCard(new Date());
+    
+    // Reset to initial FSRS state
+    const resetData: UpdateFlashcardData = {
+      due: fsrsCard.due.toISOString(),
+      stability: fsrsCard.stability,
+      difficulty: fsrsCard.difficulty,
+      elapsed_days: fsrsCard.elapsed_days,
+      scheduled_days: fsrsCard.scheduled_days,
+      reps: fsrsCard.reps,
+      lapses: fsrsCard.lapses,
+      learning_steps: fsrsCard.learning_steps,
+      state: 'New',
+      last_review: undefined,
+    };
+    
+    // Get all flashcards for this movie
+    const { items: flashcards } = await this.getFlashcards(movieId, { perPage: 1000 });
+    
+    // Reset all flashcards
+    const resetPromises = flashcards.map(card => this.updateFlashcard(card.id, resetData));
+    await Promise.all(resetPromises);
+    
+    return flashcards.length;
+  }
+
   // ===== REVIEW LOG OPERATIONS =====
 
   // Create review log

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '../ui/Button';
+import { ConfirmationDialog } from '../ui/ConfirmationDialog';
 import { FlashcardRecord } from '../../lib/types/database';
 import './ViewFlashcardsDialog.css';
 
@@ -19,6 +20,7 @@ interface ViewFlashcardsDialogProps {
   onDelete: (id: string) => Promise<void>;
   onReview: (id: string, rating: 'Again' | 'Hard' | 'Good' | 'Easy') => Promise<void>;
   onResetFSRS: (id: string) => Promise<void>;
+  onResetAllFSRS: () => Promise<void>;
   onJumpToTime: (startTime: number) => void;
   loading?: boolean;
 }
@@ -31,6 +33,7 @@ export const ViewFlashcardsDialog: React.FC<ViewFlashcardsDialogProps> = ({
   onDelete,
   onReview,
   onResetFSRS,
+  onResetAllFSRS,
   onJumpToTime,
   loading = false,
 }) => {
@@ -38,6 +41,7 @@ export const ViewFlashcardsDialog: React.FC<ViewFlashcardsDialogProps> = ({
   const [stateFilter, setStateFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'created' | 'due' | 'reps'>('created');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [showResetConfirmation, setShowResetConfirmation] = useState(false);
 
   // Filter and sort flashcards
   const filteredAndSortedCards = React.useMemo(() => {
@@ -127,6 +131,27 @@ export const ViewFlashcardsDialog: React.FC<ViewFlashcardsDialogProps> = ({
     } else {
       return `Due in ${diffDays} days`;
     }
+  };
+
+  const handleResetAllCards = () => {
+    setShowResetConfirmation(true);
+  };
+
+  const handleConfirmResetAll = async () => {
+    setShowResetConfirmation(false);
+    
+    try {
+      await onResetAllFSRS();
+      // Show success message (you might want to replace this with a better notification system)
+      window.alert(`✅ Successfully reset ${flashcards.length} flashcards!\n\nAll cards are now in "New" state and ready for fresh learning.`);
+    } catch (error) {
+      console.error('Error resetting all flashcards:', error);
+      window.alert('❌ Failed to reset all flashcards. Please try again.');
+    }
+  };
+
+  const handleCancelResetAll = () => {
+    setShowResetConfirmation(false);
   };
 
   if (!isOpen) return null;
@@ -318,11 +343,33 @@ export const ViewFlashcardsDialog: React.FC<ViewFlashcardsDialogProps> = ({
         </div>
 
         <div className="dialog-footer">
+          {flashcards.length > 0 && (
+            <Button 
+              onClick={handleResetAllCards} 
+              variant="danger"
+              disabled={loading}
+            >
+              🔄 Restart All Cards ({flashcards.length})
+            </Button>
+          )}
           <Button onClick={onClose} variant="secondary">
             Close
           </Button>
         </div>
       </div>
+
+      {/* Reset All Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={showResetConfirmation}
+        title="⚠️ Reset All Flashcards"
+        message={`Are you sure you want to reset ALL ${flashcards.length} flashcards?\n\nThis will:\n• Reset all cards to "New" state\n• Clear all review statistics (reps, lapses, etc.)\n• Reset difficulty and stability to initial values for all cards\n• Set all due dates to now\n\n⚠️ THIS ACTION CANNOT BE UNDONE!`}
+        confirmText="Reset All Cards"
+        cancelText="Cancel"
+        requireTextConfirmation="RESET ALL"
+        onConfirm={handleConfirmResetAll}
+        onCancel={handleCancelResetAll}
+        variant="danger"
+      />
     </div>
   );
 };
