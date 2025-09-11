@@ -92,6 +92,7 @@ export const TranslationWidget: React.FC<TranslationWidgetProps> = ({
 
   return (
     <g>
+      {/* eslint-disable-next-line react/jsx-pascal-case */}
       <foreignObject
         x={object.x}
         y={object.y}

@@ -84,6 +84,24 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
     }
   }, [currentCanvas?.id]);
 
+  // Sync objects when they change within the same canvas
+  useEffect(() => {
+    if (currentCanvas && currentCanvas.id === lastLoadedCanvasId.current && !isLoadingCanvas.current) {
+      const newObjects = currentCanvas.objects || [];
+      const currentObjects = drawingState.objects || [];
+      
+      // Only update if objects actually changed (to avoid infinite loops)
+      if (newObjects.length !== currentObjects.length || 
+          newObjects.some((obj, i) => obj.id !== currentObjects[i]?.id)) {
+        console.log('DrawingCanvas: Syncing objects - new count:', newObjects.length, 'old count:', currentObjects.length);
+        setDrawingState(prev => ({
+          ...prev,
+          objects: newObjects
+        }));
+      }
+    }
+  }, [currentCanvas?.objects, currentCanvas?.id]);
+
   useImperativeHandle(ref, () => ({
     getCurrentState: () => ({
       objects: drawingState.objects,
@@ -268,18 +286,16 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
           startPoint: worldPoint
         });
 
+        // Switch back to select tool
         setDrawingState(prev => ({
           ...prev,
-          objects: [...prev.objects, newObject],
-          selectedTool: 'select', // Switch back to select tool
-          selectedObjectIds: [newObject.id] // Select the new object
+          selectedTool: 'select'
         }));
         
-        // Save to database immediately
+        // Save to database - object will be added to state when it comes back with DB ID
         if (onObjectCreated) {
           onObjectCreated(newObject).catch(error => {
             console.error('Failed to save translation object:', error);
-            // Optionally remove from state if save failed
           });
         }
         
@@ -299,14 +315,13 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
           fill: stickyNoteProperties.paperColor
         };
 
+        // Switch back to select tool
         setDrawingState(prev => ({
           ...prev,
-          objects: [...prev.objects, newObject],
-          selectedTool: 'select', // Switch back to select tool
-          selectedObjectIds: [newObject.id] // Select the new object
+          selectedTool: 'select'
         }));
         
-        // Save to database immediately
+        // Save to database - object will be added to state when it comes back with DB ID
         if (onObjectCreated) {
           onObjectCreated(newObject).catch(error => {
             console.error('Failed to save sticky note object:', error);
@@ -821,20 +836,19 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
       (newTranslationObject as any).text = flashcard.subtitle_text;
     }
 
+    // Switch back to select tool
     setDrawingState(prev => ({
       ...prev,
-      selectedTool: 'select', // Switch back to select tool
-      objects: [...prev.objects, newFlashcardObject, newTranslationObject]
+      selectedTool: 'select'
     }));
 
-    // Save both objects to database immediately
+    // Save both objects to database sequentially to avoid auto-cancellation
     if (onObjectCreated) {
-      Promise.all([
-        onObjectCreated(newFlashcardObject),
-        onObjectCreated(newTranslationObject)
-      ]).catch(error => {
-        console.error('Failed to save flashcard objects:', error);
-      });
+      onObjectCreated(newFlashcardObject)
+        .then(() => onObjectCreated(newTranslationObject))
+        .catch(error => {
+          console.error('Failed to save flashcard objects:', error);
+        });
     }
 
     setShowFlashcardPicker(false);

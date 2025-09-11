@@ -337,28 +337,31 @@ export const DrawingMode = React.forwardRef<DrawingModeRef, DrawingModeProps>(({
 
     setIsSavingObject(true);
     try {
-      console.log('Creating object in database:', object.id, object.type);
+      console.log('Creating object in database:', object.type);
       
+      // Create in database first to get the real ID
       const objectData = drawingObjectToRecord(object, canvasState.activeCanvasId);
-      await pocketBaseService.createCanvasObject(objectData);
+      const createdRecord = await pocketBaseService.createCanvasObject(objectData);
       
-      // Update local state to include the new object
+      // Convert the database record back to DrawingObject with the correct database ID
+      const objectWithDbId = recordToDrawingObject(createdRecord);
+      console.log('Object created with database ID:', objectWithDbId.id);
+      
+      // Add to local state with the database ID
       setCanvasState(prev => ({
         ...prev,
         canvases: prev.canvases.map(canvas =>
           canvas.id === canvasState.activeCanvasId
             ? { 
                 ...canvas, 
-                objects: canvas.objects.some(obj => obj.id === object.id) 
-                  ? canvas.objects // Object already exists in state
-                  : [...canvas.objects, object], // Add if not exists
+                objects: [...canvas.objects, objectWithDbId],
                 lastModified: new Date() 
               }
             : canvas
         )
       }));
       
-      console.log('Object created successfully:', object.id);
+      console.log('Object created successfully with ID:', objectWithDbId.id);
     } catch (error) {
       console.error('Failed to create object:', error);
       throw error; // Re-throw so the canvas can handle it
