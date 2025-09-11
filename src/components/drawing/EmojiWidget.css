@@ -12,13 +12,11 @@
   align-items: center;
   justify-content: center;
   box-shadow: none;
-  transition: all 0.2s ease;
 }
 
 .emoji-widget:hover {
   background: transparent;
   box-shadow: none;
-  transform: scale(1.05);
 }
 
 .emoji-widget.selected {
