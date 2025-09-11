@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback, useEffect, forwardRef, useImperat
 import { DrawingObject, ToolType, Point, DrawingState, Canvas } from '../../lib/types/drawing';
 import { FlashcardRecord } from '../../lib/types/database';
 import { DrawingUtils } from '../../lib/services/drawing';
+import pocketBaseService from '../../lib/services/pocketbase';
 import { DrawingToolbar } from './DrawingToolbar';
 import { DrawingObjectRenderer } from './DrawingObjectRenderer';
 import { SelectionHandles } from './SelectionHandles';
@@ -327,6 +328,25 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
             console.error('Failed to save sticky note object:', error);
           });
         }
+        
+      } else if (drawingState.selectedTool === 'image') {
+        // Open file picker for image selection
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+        fileInput.onchange = (e) => {
+          const file = (e.target as HTMLInputElement).files?.[0];
+          if (file) {
+            handleImageFile(file, worldPoint);
+          }
+        };
+        fileInput.click();
+        
+        // Switch back to select tool
+        setDrawingState(prev => ({
+          ...prev,
+          selectedTool: 'select'
+        }));
         
       } else if (drawingState.selectedTool === 'freehand') {
         // Start freehand drawing immediately - ignore object interactions
@@ -687,6 +707,17 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
           }));
           return;
         }
+
+        // I key - switch to image tool
+        if (e.key === 'i' || e.key === 'I') {
+          e.preventDefault();
+          console.log('I KEY: Switching to image tool');
+          setDrawingState(prev => ({
+            ...prev,
+            selectedTool: 'image'
+          }));
+          return;
+        }
       }
 
       // Only allow Delete key (not Backspace) and only when not editing text
@@ -776,6 +807,77 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
       };
     }
   }, [isDragging, dragStart, dragOffset, viewBoxWidth, viewBoxHeight, width, height, viewport]);
+
+  // Image file handler
+  const handleImageFile = useCallback((file: File, position: Point) => {
+    // Create image object - we'll get dimensions after loading
+    const img = new Image();
+    img.onload = () => {
+      const maxWidth = 300;
+      const maxHeight = 300;
+      
+      // Calculate dimensions while maintaining aspect ratio
+      let { width, height } = img;
+      if (width > maxWidth || height > maxHeight) {
+        const ratio = Math.min(maxWidth / width, maxHeight / height);
+        width *= ratio;
+        height *= ratio;
+      }
+
+      const newObject = DrawingUtils.createObject({
+        type: 'image',
+        startPoint: position
+      }) as any;
+
+      // Set image properties
+      newObject.width = width;
+      newObject.height = height;
+      newObject.originalWidth = img.width;
+      newObject.originalHeight = img.height;
+      newObject.fileName = file.name;
+
+      // Save to database with file
+      if (onObjectCreated) {
+        // Create a modified object that includes the file for database storage
+        const objectWithFile = { ...newObject, file };
+        onObjectCreated(objectWithFile).catch(error => {
+          console.error('Failed to save image object:', error);
+        });
+      }
+    };
+
+    // Load the image to get dimensions
+    img.src = URL.createObjectURL(file);
+  }, [onObjectCreated]);
+
+  // Handle paste events for images
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.indexOf('image') === 0) {
+          const file = item.getAsFile();
+          if (file) {
+            // Paste image at center of current viewport
+            const centerPoint = {
+              x: viewport.x,
+              y: viewport.y
+            };
+            handleImageFile(file, centerPoint);
+          }
+          break;
+        }
+      }
+    };
+
+    document.addEventListener('paste', handlePaste);
+    return () => {
+      document.removeEventListener('paste', handlePaste);
+    };
+  }, [viewport, handleImageFile]);
 
   // Handle tool selection
   const handleToolSelect = useCallback((tool: ToolType) => {
@@ -1247,6 +1349,19 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
     ? `translate(${dragOffset.x}px, ${dragOffset.y}px)`
     : '';
 
+  // Generate PocketBase image URL
+  const getImageUrl = useCallback((fileName: string) => {
+    if (!currentCanvas) return '';
+    // Find the canvas object that contains this file
+    const imageObject = currentCanvas.objects.find(obj => 
+      obj.type === 'image' && (obj as any).fileName === fileName
+    );
+    if (!imageObject) return '';
+    
+    // Use the actual filename (which includes the PocketBase prefix)
+    return pocketBaseService.getFileUrl('pbc_canvas_objects', imageObject.id, fileName);
+  }, [currentCanvas]);
+
   return (
     <div className="drawing-canvas-container">
       {/* Drawing Toolbar */}
@@ -1402,6 +1517,7 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
             isDragging={isDraggingObject}
             draggedObjectId={draggedObjectId}
             currentTool={drawingState.selectedTool}
+            getImageUrl={getImageUrl}
           />
         ))}
 

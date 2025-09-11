@@ -107,6 +107,22 @@ export class DrawingUtils {
           }
         };
 
+      case 'image':
+        return {
+          ...baseObject,
+          type: 'image',
+          width: 200,
+          height: 200,
+          originalWidth: 200,
+          originalHeight: 200,
+          fileName: undefined,
+          style: {
+            ...baseObject.style,
+            fill: 'transparent',
+            stroke: 'transparent'
+          }
+        };
+
       default:
         throw new Error(`Unknown object type: ${data.type}`);
     }
@@ -149,6 +165,14 @@ export class DrawingUtils {
         };
 
       case 'sticky-note':
+        return {
+          x: obj.x,
+          y: obj.y,
+          width: obj.width,
+          height: obj.height
+        };
+
+      case 'image':
         return {
           x: obj.x,
           y: obj.y,

@@ -16,7 +16,8 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
     { type: 'freehand', label: 'Freehand', icon: '✏️', shortcut: 'F' },
     { type: 'flashcard', label: 'Flashcard', icon: '📇' },
     { type: 'translation', label: 'Translation', icon: '🌐' },
-    { type: 'sticky-note', label: 'Sticky Note', icon: '📝', shortcut: 'S' }
+    { type: 'sticky-note', label: 'Sticky Note', icon: '📝', shortcut: 'S' },
+    { type: 'image', label: 'Image', icon: '🖼️', shortcut: 'I' }
   ];
 
   return (

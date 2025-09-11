@@ -339,8 +339,19 @@ export const DrawingMode = React.forwardRef<DrawingModeRef, DrawingModeProps>(({
     try {
       console.log('Creating object in database:', object.type);
       
+      // Extract file if present (for image objects)
+      const file = (object as any).file;
+      const cleanObject = { ...object };
+      delete (cleanObject as any).file;
+      
       // Create in database first to get the real ID
-      const objectData = drawingObjectToRecord(object, canvasState.activeCanvasId);
+      const objectData = drawingObjectToRecord(cleanObject, canvasState.activeCanvasId);
+      
+      // Add file to objectData if present
+      if (file) {
+        objectData.files = [file];
+      }
+      
       const createdRecord = await pocketBaseService.createCanvasObject(objectData);
       
       // Convert the database record back to DrawingObject with the correct database ID

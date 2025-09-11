@@ -1,0 +1,112 @@
+.image-widget {
+  cursor: pointer;
+  user-select: none;
+  border: 2px solid #ddd;
+  border-radius: 4px;
+  /* transition: all 0.05s ease; */
+  overflow: visible; /* Changed to visible so dashed border shows */
+  position: relative;
+}
+
+.image-widget.selected {
+  border: 2px dashed #007acc;
+}
+
+.image-widget.resizing {
+  border: 2px dashed #007acc;
+  box-shadow: 0 0 15px rgba(0, 122, 204, 0.6);
+}
+
+.image-content {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+/* Resize handles */
+.resize-handle {
+  position: absolute;
+  background: #007acc;
+  border: 2px solid #fff;
+  border-radius: 3px;
+  z-index: 1000; /* Higher z-index to ensure visibility */
+  /* transition: all 0.05s ease; */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  pointer-events: all !important; /* Force mouse events to work */
+  width: 20px;
+  height: 20px;
+}
+
+.resize-handle-se {
+  bottom: -10px;
+  right: -10px;
+  cursor: se-resize;
+}
+
+.resize-handle-s {
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: s-resize;
+}
+
+.resize-handle-e {
+  right: -10px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: e-resize;
+}
+
+/* Hover effects for resize handles */
+.resize-handle:hover {
+  background: #005999;
+  transform: scale(1.2);
+  box-shadow: 0 2px 8px rgba(0, 89, 153, 0.4);
+}
+
+.resize-handle-s:hover {
+  transform: translateX(-50%) scale(1.2);
+}
+
+.resize-handle-e:hover {
+  transform: translateY(-50%) scale(1.2);
+}
+
+.crop-overlay {
+  pointer-events: none;
+}
+
+.crop-overlay-bg {
+  pointer-events: none;
+}
+
+.crop-area {
+  pointer-events: none;
+  stroke-dasharray: 4,4;
+  /* animation: crop-march 1s linear infinite; */
+}
+
+@keyframes crop-march {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: 8;
+  }
+}
+
+.crop-handle {
+  cursor: crosshair;
+  /* transition: all 0.2s ease; */
+}
+
+.crop-handle:hover {
+  r: 6;
+  fill: #00cc00;
+}
+
+.image-info {
+  pointer-events: none;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  user-select: none;
+}

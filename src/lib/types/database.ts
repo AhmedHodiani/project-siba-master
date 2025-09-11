@@ -146,11 +146,12 @@ export interface MovieCanvasRecord extends BaseRecord {
 
 export interface CanvasObjectRecord extends BaseRecord {
   canvas_id: string;          // Foreign key to movie_canvases
-  type: 'freehand' | 'sticky-note' | 'flashcard' | 'translation';
+  type: 'freehand' | 'sticky-note' | 'flashcard' | 'translation' | 'image';
   x: number;                  // Object position X
   y: number;                  // Object position Y
   z_index: number;            // Layer order
   object_data: any;           // JSON blob with type-specific properties
+  files?: string[];           // File attachments (for images, etc.)
   complexity_score?: number;  // Optional performance optimization field
 }
 
@@ -176,20 +177,22 @@ export interface UpdateCanvasData {
 // Type for creating new canvas objects
 export interface CreateCanvasObjectData {
   canvas_id: string;
-  type: 'freehand' | 'sticky-note' | 'flashcard' | 'translation';
+  type: 'freehand' | 'sticky-note' | 'flashcard' | 'translation' | 'image';
   x: number;
   y: number;
   z_index: number;
   object_data: any;
+  files?: File[];
   complexity_score?: number;
 }
 
 // Type for updating canvas objects
 export interface UpdateCanvasObjectData {
-  type?: 'freehand' | 'sticky-note' | 'flashcard' | 'translation';
+  type?: 'freehand' | 'sticky-note' | 'flashcard' | 'translation' | 'image';
   x?: number;
   y?: number;
   z_index?: number;
   object_data?: any;
+  files?: File[];
   complexity_score?: number;
 }

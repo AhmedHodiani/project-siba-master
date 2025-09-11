@@ -34,7 +34,8 @@ export type DrawingObjectType =
   | 'flashcard'
   | 'translation'
   | 'freehand'
-  | 'sticky-note';
+  | 'sticky-note'
+  | 'image';
 
 export interface BaseDrawingObject {
   id: string;
@@ -82,18 +83,33 @@ export interface StickyNoteObject extends BaseDrawingObject {
   fontSize: number;
 }
 
+export interface ImageObject extends BaseDrawingObject {
+  type: 'image';
+  fileName?: string; // Name of the file in PocketBase files array
+  width: number;
+  height: number;
+  originalWidth: number;
+  originalHeight: number;
+  cropX?: number;
+  cropY?: number;
+  cropWidth?: number;
+  cropHeight?: number;
+}
+
 export type DrawingObject = 
   | FlashcardObject
   | TranslationObject
   | FreehandObject
-  | StickyNoteObject;
+  | StickyNoteObject
+  | ImageObject;
 
 export type ToolType = 
   | 'select' 
   | 'flashcard'
   | 'translation'
   | 'freehand'
-  | 'sticky-note';
+  | 'sticky-note'
+  | 'image';
 
 export interface DrawingState {
   objects: DrawingObject[];
@@ -212,6 +228,17 @@ export function drawingObjectToRecord(object: DrawingObject, canvasId: string): 
         width: (object as TranslationObject).width,
         height: (object as TranslationObject).height,
       }),
+      ...(object.type === 'image' && {
+        width: (object as ImageObject).width,
+        height: (object as ImageObject).height,
+        originalWidth: (object as ImageObject).originalWidth,
+        originalHeight: (object as ImageObject).originalHeight,
+        fileName: (object as ImageObject).fileName,
+        cropX: (object as ImageObject).cropX,
+        cropY: (object as ImageObject).cropY,
+        cropWidth: (object as ImageObject).cropWidth,
+        cropHeight: (object as ImageObject).cropHeight,
+      }),
     },
     complexity_score: calculateComplexityScore(object),
   };
@@ -282,6 +309,21 @@ export function recordToDrawingObject(record: CanvasObjectRecord): DrawingObject
         height: record.object_data.height ?? 180,
       } as TranslationObject;
 
+    case 'image':
+      return {
+        ...baseObject,
+        type: 'image',
+        width: record.object_data.width ?? 200,
+        height: record.object_data.height ?? 200,
+        originalWidth: record.object_data.originalWidth ?? 200,
+        originalHeight: record.object_data.originalHeight ?? 200,
+        fileName: record.files && record.files.length > 0 ? record.files[0] : record.object_data.fileName,
+        cropX: record.object_data.cropX,
+        cropY: record.object_data.cropY,
+        cropWidth: record.object_data.cropWidth,
+        cropHeight: record.object_data.cropHeight,
+      } as ImageObject;
+
     default:
       throw new Error(`Unknown object type: ${record.type}`);
   }
@@ -300,6 +342,8 @@ function calculateComplexityScore(object: DrawingObject): number {
       return (object as TranslationObject).text.length;
     case 'flashcard':
       return 10; // Fixed complexity for flashcards
+    case 'image':
+      return 5; // Fixed complexity for images
     default:
       return 1;
   }
