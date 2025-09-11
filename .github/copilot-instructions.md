@@ -1,6 +1,6 @@
-z# Copilot Instructions for Movie Library Electron App
+# Copilot Instructions for Movie Library Electron App
 
-## Project Architecture (Language Learning + Advanced FSRS + AI Integration)
+## Project Architecture (Language Learning + Advanced FSRS + AI Integration + Drawing System)
 
 ### Big Picture Architecture
 - **Electron Main Process** (`src/main/main.ts`): Handles window creation, IPC (file dialogs, ffmpeg, Ollama AI), menu, and service bridging. IPC methods are typed in `preload.ts`.
@@ -15,10 +15,13 @@ z# Copilot Instructions for Movie Library Electron App
 - **Package**: `npm run package` (electron-builder)
 
 ### Key Patterns & Conventions
-- **Type Safety**: All DB/service methods typed in `src/lib/types/database.ts`
+- **Type Safety**: All DB/service methods typed in `src/lib/types/database.ts` + `src/lib/types/drawing.ts`
 - **Service Layer**: All DB/AI/IPC logic in `src/lib/services/` and `src/main/ollama-service.ts`
 - **Advanced FSRS**: Comprehensive spaced repetition with mastery sessions, skip functionality, and intelligent card grouping via `ts-fsrs` (dynamic import)
 - **Golden Layout**: Multi-pane UI in `MovieDetails` (`src/components/layout/GoldenLayoutWrapper.tsx`)
+- **Drawing System**: Complex SVG-based canvas with HTML widgets via foreignObject pattern (`src/components/drawing/`)
+- **Widget Pattern**: HTML-in-SVG via foreignObject for interactive objects (sticky notes, images, translations, flashcards)
+- **Resize Pattern**: All widgets follow StickyNoteWidget resize handler pattern EXACTLY - copy existing patterns, never create new ones
 - **Modern Dialog Design**: Two-column CSS Grid layouts, glassmorphism styling, responsive animations
 - **Video/Subtitle**: `VideoPreview` and `VideoPlayer` handle aspect ratio, repeat, subtitle delay, keyboard nav
 - **Translation**: Text selection → `TranslateButton` → `TranslationModal` (Bing iframe)
@@ -27,7 +30,10 @@ z# Copilot Instructions for Movie Library Electron App
 
 ### Integration Points
 - **IPC**: All file/AI ops via typed IPC in `preload.ts`, exposed via contextBridge
-- **PocketBase**: Must be running for all persistence; flashcard scheduling, mastery tracking, progress analytics
+- **PocketBase**: Must be running for all persistence; flashcard scheduling, mastery tracking, progress analytics, drawing canvas objects
+- **Drawing Integration**: Accessed via MovieDetails study mode toggle → `<DrawingMode movieId={movieId} />` (NOT part of Golden Layout)
+- **Canvas Database**: Two collections - `pbc_canvases` (metadata) + `pbc_canvas_objects` (drawing objects with coordinates/properties)
+- **Coordinate System**: Screen→World conversion with viewport zoom compensation (always divide by zoom for accuracy)
 - **FFmpeg**: Required for thumbnail extraction (main process)
 - **Ollama**: Local AI service for translation/learning
 - **Path Aliases**: Use `@/` for absolute imports (webpack config)
@@ -51,9 +57,14 @@ z# Copilot Instructions for Movie Library Electron App
 ### Key Files/Directories
 - `src/lib/services/pocketbase.ts` — DB service with advanced FSRS integration and mastery tracking
 - `src/lib/types/database.ts` — TypeScript types for DB/FSRS including mastery session types
+- `src/lib/types/drawing.ts` — Complete drawing system type definitions and conversion functions
+- `src/components/drawing/` — Drawing system components (see drawing-section.md for complete guide)
+- `src/components/drawing/DrawingMode.tsx` — Main drawing container with canvas management and database operations
+- `src/components/drawing/DrawingCanvas.tsx` — Core drawing engine with SVG rendering, tools, viewport
+- `src/components/drawing/StickyNoteWidget.tsx` — Template for all resizable widgets (copy this pattern EXACTLY)
 - `src/components/flashcard/StudySessionDialog.tsx` — Modern study session configuration with mastery mode
 - `src/components/flashcard/StudySessionDialog.css` — Glassmorphism styling with responsive design and animations
-- `src/renderer/pages/movie-details/MovieDetails.tsx` — Main study logic with mastery session handling
+- `src/renderer/pages/movie-details/MovieDetails.tsx` — Main study logic with mastery session handling + drawing integration
 - `src/components/ui/VideoPreview.tsx` — Video preview/repeat functionality
 - `src/components/ui/MarkdownEditor.tsx` — Markdown editor for flashcard notes
 - `src/components/layout/GoldenLayoutWrapper.tsx` — Golden Layout integration
@@ -61,6 +72,61 @@ z# Copilot Instructions for Movie Library Electron App
 - `src/main/ollama-service.ts` — Main process Ollama client
 - `src/lib/services/ollama.ts` — Renderer Ollama service
 - `pocketbase/pb_migrations/` — DB schema migrations including FSRS fields
+
+## Drawing System Critical Patterns (🚨 MANDATORY COMPLIANCE 🚨)
+
+### Core Architecture
+- **DrawingMode.tsx**: Main container managing canvas state, database operations, UI
+- **DrawingCanvas.tsx**: SVG-based rendering engine, viewport/zoom, tool handlers, object interactions  
+- **DrawingObjectRenderer.tsx**: Renders objects by type using foreignObject pattern
+- **5 Object Types**: sticky-note, image, flashcard, translation, freehand (all HTML widgets except freehand)
+- **Database**: `pbc_canvases` (metadata) + `pbc_canvas_objects` (object data with world coordinates)
+
+### Widget Development Rules (NON-NEGOTIABLE)
+```tsx
+// ALWAYS copy StickyNoteWidget.tsx structure EXACTLY for new widgets
+interface WidgetProps {
+  object: ObjectType;         // Main data
+  isSelected: boolean;        // Selection state
+  zoom: number;              // Canvas zoom (for coordinate conversion)
+  onUpdate: (id: string, updates: Partial<ObjectType>) => void; // Real-time updates
+  onSelect: (id: string) => void;                               // Selection
+  onContextMenu: (event: React.MouseEvent, id: string) => void; // Right-click
+  onStartDrag?: (e: React.MouseEvent, id: string) => void;      // Drag start
+}
+```
+
+### Resize Pattern (NEVER DEVIATE)
+- **Copy from StickyNoteWidget.tsx EXACTLY**: 3 handles (SE, S, E), same positioning, same event handlers
+- **Zoom Compensation**: `deltaX / zoom, deltaY / zoom` for accurate coordinate conversion
+- **Real-time Updates**: Call `onUpdate(id, {width, height})` on every mousemove, NOT just mouseup
+- **CSS Structure**: `.resize-handle` with absolute positioning, same dimensions/styling as StickyNoteWidget.css
+
+### Coordinate System (CRITICAL)
+```tsx
+// Always use world coordinates in database, convert for screen display
+const worldPoint = {
+  x: viewport.x + (screenPoint.x - canvasSize.width / 2) / viewport.zoom,
+  y: viewport.y + (screenPoint.y - canvasSize.height / 2) / viewport.zoom
+};
+```
+
+### Database Integration Pattern
+- **UI→DB**: `drawingObjectToRecord(object, canvasId)` converts UI objects to database format
+- **DB→UI**: `recordToDrawingObject(record)` converts database records to UI objects  
+- **object_data Field**: JSON containing type-specific properties (text, colors, dimensions, etc.)
+- **Files Field**: Array for image attachments (PocketBase file uploads)
+
+### Anti-Spaghetti Code Enforcement
+- **Widget Creation**: Copy StickyNoteWidget.tsx file completely, modify content only
+- **Resize Logic**: Never write new resize handlers, copy existing handleResizeStart pattern EXACTLY
+- **Event Handling**: Copy existing event propagation patterns (preventDefault, stopPropagation)  
+- **CSS Classes**: Use existing patterns (.widget-container, .resize-handle, etc.)
+- **Database Operations**: Use existing conversion functions, don't write custom logic
+- **Tool Integration**: Copy existing tool patterns in DrawingCanvas.tsx switch statements
+
+### Golden Rule
+**If existing code does what you need, COPY IT. Don't write new code.**
 
 ---
 **Feedback:** If any section is unclear or missing, please specify which workflows, patterns, or integration points need more detail.
@@ -142,9 +208,19 @@ z# Copilot Instructions for Movie Library Electron App
 ## File Structure Specifics
 - `src/lib/services/pocketbase.ts` — Database service with advanced FSRS integration, mastery tracking, and typed CRUD operations
 - `src/lib/types/database.ts` — TypeScript definitions including FSRS types, mastery session configs, and collection constants
+- `src/lib/types/drawing.ts` — Complete drawing system type definitions, object interfaces, database conversion functions
+- `src/lib/services/drawing.ts` — DrawingUtils class with object creation, coordinate transformation, utility methods
+- `src/components/drawing/DrawingMode.tsx` — Main drawing container with canvas management, database operations, UI controls
+- `src/components/drawing/DrawingCanvas.tsx` — Core drawing engine with SVG rendering, viewport/zoom, tool handlers, object interactions
+- `src/components/drawing/DrawingObjectRenderer.tsx` — Object renderer using foreignObject pattern, handles all widget types
+- `src/components/drawing/StickyNoteWidget.tsx` — Template widget with resize handles (COPY THIS PATTERN for new widgets)
+- `src/components/drawing/ImageWidget.tsx` — Image widget with resize, file upload, crop functionality (follows StickyNote pattern)
+- `src/components/drawing/FlashcardWidget.tsx` — Flashcard preview widget with video timing and metadata display
+- `src/components/drawing/TranslationWidget.tsx` — Translation widget with Bing iframe integration
+- `src/components/drawing/DrawingToolbar.tsx` — 5-tool toolbar (select, flashcard, translation, freehand, sticky-note)
 - `src/components/flashcard/StudySessionDialog.tsx` — Modern study session configuration with mastery mode, smart grouping
 - `src/components/flashcard/StudySessionDialog.css` — Glassmorphism styling with responsive grid, animations, range slider
-- `src/renderer/pages/movie-details/MovieDetails.tsx` — Main study logic with mastery session handling, skip functionality
+- `src/renderer/pages/movie-details/MovieDetails.tsx` — Main study logic with mastery session handling, drawing integration
 - `src/components/flashcard/AddFlashcardDialog.tsx` — Two-column layout for flashcard creation
 - `src/components/flashcard/ViewFlashcardsDialog.tsx` — Flashcard table with review buttons and FSRS state display
 - `src/components/ui/VideoPreview.tsx` — Reusable video component with dynamic aspect ratio and repeat functionality
@@ -156,10 +232,11 @@ z# Copilot Instructions for Movie Library Electron App
 - `pocketbase/pb_migrations/` — Database schema migrations including comprehensive FSRS field additions
 
 ## Critical Dependencies & Constraints
-- **PocketBase**: Must be running on :8090 before starting frontend, handles all data persistence including flashcard scheduling and mastery tracking
+- **PocketBase**: Must be running on :8090 before starting frontend, handles all data persistence including flashcard scheduling, mastery tracking, and drawing canvas objects
 - **FFmpeg**: System dependency required for thumbnail extraction via spawn processes in main.ts
 - **FSRS Library**: `ts-fsrs` for advanced spaced repetition scheduling, imported dynamically to avoid module conflicts
 - **Golden Layout**: Multi-pane interface library requiring careful React component integration and lifecycle management
+- **Drawing System**: Complex SVG-based canvas with HTML widget rendering, coordinate system transformations, real-time database sync
 - **Translation APIs**: Relies on Bing Translator iframe integration with language detection and URL encoding
 - **Ollama AI**: Local AI service dependency at `localhost:11434` for translation and language learning features
 - **React 19**: Uses new createRoot API, React Router (`MemoryRouter`) for navigation, complex state management for study sessions
