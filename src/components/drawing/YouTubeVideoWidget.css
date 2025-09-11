@@ -1,0 +1,188 @@
+/* YouTube Video Widget Styles */
+
+.youtube-video-widget {
+  cursor: pointer;
+  user-select: none;
+  border: 2px solid #ff0000;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #000000;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+}
+
+.youtube-video-widget:hover {
+  box-shadow: 0 6px 16px rgba(255, 0, 0, 0.4);
+}
+
+.youtube-video-widget.selected {
+  border: 2px dashed #007acc;
+}
+
+.youtube-video-widget.resizing {
+  border-color: #007acc;
+  box-shadow: 0 0 15px rgba(0, 122, 204, 0.6);
+}
+
+/* Red header bar for dragging */
+.video-header {
+  height: 20px;
+  background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+  border-bottom: 1px solid #990000;
+  cursor: move;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.header-grip {
+  width: 30px;
+  height: 8px;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.3) 0px,
+    rgba(255, 255, 255, 0.3) 2px,
+    transparent 2px,
+    transparent 4px
+  );
+  border-radius: 2px;
+}
+
+.video-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000000;
+  min-height: 0; /* Allow flex shrinking */
+}
+
+.url-input-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* YouTube iframe styling */
+.video-content iframe {
+  border: none;
+  width: 100%;
+  height: 100%;
+}
+
+.url-input {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 14px;
+  border: 2px solid #ff0000;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #ffffff;
+  outline: none;
+  transition: border-color 0.3s ease;
+}
+
+.url-input:focus {
+  border-color: #007acc;
+  box-shadow: 0 0 10px rgba(0, 122, 204, 0.5);
+}
+
+.url-input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: rgba(255, 255, 255, 0.7);
+  text-align: center;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.youtube-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.7;
+}
+
+.placeholder p {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Resize handles - copied from StickyNoteWidget.css EXACTLY */
+.resize-handle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: #007acc;
+  border: 2px solid #fff;
+  z-index: 1000;
+  pointer-events: all !important;
+  transition: all 0.2s ease;
+}
+
+.resize-handle:hover {
+  background: #005a9e;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 122, 204, 0.4);
+}
+
+.resize-handle-se {
+  bottom: -10px;
+  right: -10px;
+  cursor: se-resize;
+  border-radius: 0 0 50% 0;
+}
+
+.resize-handle-s {
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: s-resize;
+  border-radius: 0 0 50% 50%;
+}
+
+.resize-handle-e {
+  right: -10px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: e-resize;
+  border-radius: 0 50% 50% 0;
+}
+
+
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .resize-handle {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .resize-handle-se {
+    bottom: -12px;
+    right: -12px;
+  }
+  
+  .resize-handle-s {
+    bottom: -12px;
+  }
+  
+  .resize-handle-e {
+    right: -12px;
+  }
+}

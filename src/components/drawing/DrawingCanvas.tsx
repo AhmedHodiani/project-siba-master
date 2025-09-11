@@ -11,6 +11,7 @@ import { ContextMenu } from './ContextMenu';
 import { BrushPropertiesPanel } from './BrushPropertiesPanel';
 import { StickyNotePropertiesPanel } from './StickyNotePropertiesPanel';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { YouTubeUrlDialog } from './YouTubeUrlDialog';
 import './DrawingCanvas.css';
 
 interface Viewport {
@@ -122,6 +123,8 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
   const [showFlashcardPicker, setShowFlashcardPicker] = useState(false);
   const [flashcardPlacementPoint, setFlashcardPlacementPoint] = useState<Point | null>(null);
   const [currentFreehandId, setCurrentFreehandId] = useState<string | null>(null);
+  const [isYouTubeUrlDialogOpen, setIsYouTubeUrlDialogOpen] = useState(false);
+  const [pendingYouTubePoint, setPendingYouTubePoint] = useState<Point | null>(null);
   
   // Brush properties state
   const [brushProperties, setBrushProperties] = useState({
@@ -341,6 +344,17 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
           }
         };
         fileInput.click();
+        
+        // Switch back to select tool
+        setDrawingState(prev => ({
+          ...prev,
+          selectedTool: 'select'
+        }));
+        
+      } else if (drawingState.selectedTool === 'youtube-video') {
+        // Store the world point for YouTube video creation
+        setPendingYouTubePoint(worldPoint);
+        setIsYouTubeUrlDialogOpen(true);
         
         // Switch back to select tool
         setDrawingState(prev => ({
@@ -960,6 +974,55 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
     setShowFlashcardPicker(false);
   }, []);
 
+  const handleYouTubeUrlSubmit = useCallback((url: string) => {
+    if (pendingYouTubePoint && url.trim()) {
+      // Extract YouTube video ID from URL
+      const extractYouTubeId = (url: string): string => {
+        const patterns = [
+          /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+          /youtube\.com\/watch\?.*v=([^&\n?#]+)/
+        ];
+        
+        for (const pattern of patterns) {
+          const match = url.match(pattern);
+          if (match && match[1]) {
+            return match[1];
+          }
+        }
+        return '';
+      };
+
+      // Create YouTube video object
+      const newObject = DrawingUtils.createObject({
+        type: 'youtube-video',
+        startPoint: pendingYouTubePoint
+      });
+      
+      // Set the video URL, ID, and title
+      const videoId = extractYouTubeId(url.trim());
+      (newObject as any).videoUrl = url.trim();
+      (newObject as any).videoId = videoId;
+      (newObject as any).title = videoId ? `Video ${videoId}` : 'YouTube Video';
+      
+      console.log('Created YouTube video object:', newObject);
+      
+      // Save to database - object will be added to state when it comes back with DB ID
+      if (onObjectCreated) {
+        onObjectCreated(newObject).catch(error => {
+          console.error('Failed to save YouTube video object:', error);
+        });
+      }
+    }
+    
+    setIsYouTubeUrlDialogOpen(false);
+    setPendingYouTubePoint(null);
+  }, [pendingYouTubePoint, onObjectCreated]);
+
+  const handleYouTubeUrlDialogClose = useCallback(() => {
+    setIsYouTubeUrlDialogOpen(false);
+    setPendingYouTubePoint(null);
+  }, []);
+
   // Handle object selection
   const handleObjectSelect = useCallback((objectId: string) => {
     setDrawingState(prev => ({
@@ -1558,6 +1621,13 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
           movieId={movieId}
         />
       )}
+
+      {/* YouTube URL Dialog */}
+      <YouTubeUrlDialog
+        isOpen={isYouTubeUrlDialogOpen}
+        onClose={handleYouTubeUrlDialogClose}
+        onConfirm={handleYouTubeUrlSubmit}
+      />
 
       {/* Context Menu */}
       <ContextMenu

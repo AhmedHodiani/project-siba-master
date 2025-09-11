@@ -35,7 +35,8 @@ export type DrawingObjectType =
   | 'translation'
   | 'freehand'
   | 'sticky-note'
-  | 'image';
+  | 'image'
+  | 'youtube-video';
 
 export interface BaseDrawingObject {
   id: string;
@@ -96,12 +97,22 @@ export interface ImageObject extends BaseDrawingObject {
   cropHeight?: number;
 }
 
+export interface YouTubeVideoObject extends BaseDrawingObject {
+  type: 'youtube-video';
+  videoUrl: string;     // YouTube video URL
+  videoId: string;      // Extracted YouTube video ID
+  title?: string;       // Video title (optional)
+  width: number;
+  height: number;
+}
+
 export type DrawingObject = 
   | FlashcardObject
   | TranslationObject
   | FreehandObject
   | StickyNoteObject
-  | ImageObject;
+  | ImageObject
+  | YouTubeVideoObject;
 
 export type ToolType = 
   | 'select' 
@@ -109,7 +120,8 @@ export type ToolType =
   | 'translation'
   | 'freehand'
   | 'sticky-note'
-  | 'image';
+  | 'image'
+  | 'youtube-video';
 
 export interface DrawingState {
   objects: DrawingObject[];
@@ -239,6 +251,13 @@ export function drawingObjectToRecord(object: DrawingObject, canvasId: string): 
         cropWidth: (object as ImageObject).cropWidth,
         cropHeight: (object as ImageObject).cropHeight,
       }),
+      ...(object.type === 'youtube-video' && {
+        videoUrl: (object as YouTubeVideoObject).videoUrl,
+        videoId: (object as YouTubeVideoObject).videoId,
+        title: (object as YouTubeVideoObject).title,
+        width: (object as YouTubeVideoObject).width,
+        height: (object as YouTubeVideoObject).height,
+      }),
     },
     complexity_score: calculateComplexityScore(object),
   };
@@ -323,6 +342,17 @@ export function recordToDrawingObject(record: CanvasObjectRecord): DrawingObject
         cropWidth: record.object_data.cropWidth,
         cropHeight: record.object_data.cropHeight,
       } as ImageObject;
+
+    case 'youtube-video':
+      return {
+        ...baseObject,
+        type: 'youtube-video',
+        videoUrl: record.object_data.videoUrl ?? '',
+        videoId: record.object_data.videoId ?? '',
+        title: record.object_data.title ?? '',
+        width: record.object_data.width ?? 560,
+        height: record.object_data.height ?? 315,
+      } as YouTubeVideoObject;
 
     default:
       throw new Error(`Unknown object type: ${record.type}`);

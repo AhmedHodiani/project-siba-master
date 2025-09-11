@@ -123,6 +123,22 @@ export class DrawingUtils {
           }
         };
 
+      case 'youtube-video':
+        return {
+          ...baseObject,
+          type: 'youtube-video',
+          videoUrl: '',
+          videoId: '',
+          title: '',
+          width: 560,
+          height: 315, // Standard YouTube player aspect ratio (16:9)
+          style: {
+            ...baseObject.style,
+            fill: '#000000',
+            stroke: '#ff0000' // YouTube red
+          }
+        };
+
       default:
         throw new Error(`Unknown object type: ${data.type}`);
     }
@@ -173,6 +189,14 @@ export class DrawingUtils {
         };
 
       case 'image':
+        return {
+          x: obj.x,
+          y: obj.y,
+          width: obj.width,
+          height: obj.height
+        };
+
+      case 'youtube-video':
         return {
           x: obj.x,
           y: obj.y,

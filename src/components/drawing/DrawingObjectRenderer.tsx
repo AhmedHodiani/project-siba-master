@@ -1,9 +1,10 @@
 import React from 'react';
-import { DrawingObject, FlashcardObject, TranslationObject, FreehandObject, StickyNoteObject, ImageObject, ToolType } from '../../lib/types/drawing';
+import { DrawingObject, FlashcardObject, TranslationObject, FreehandObject, StickyNoteObject, ImageObject, YouTubeVideoObject, ToolType } from '../../lib/types/drawing';
 import { FlashcardWidget } from './FlashcardWidget';
 import { TranslationWidget } from './TranslationWidget';
 import { StickyNoteWidget } from './StickyNoteWidget';
 import { ImageWidget } from './ImageWidget';
+import { YouTubeVideoWidget } from './YouTubeVideoWidget';
 
 interface DrawingObjectRendererProps {
   object: DrawingObject;
@@ -262,6 +263,55 @@ export const DrawingObjectRenderer: React.FC<DrawingObjectRendererProps> = ({
               }
             }}
             getImageUrl={getImageUrl}
+          />
+        </foreignObject>
+      );
+
+    case 'youtube-video':
+      const youtubeObj = object as YouTubeVideoObject;
+      
+      const handleYouTubeUpdate = (id: string, updates: Partial<YouTubeVideoObject>) => {
+        if (onUpdate) {
+          onUpdate(id, updates as Partial<DrawingObject>);
+        }
+      };
+      
+      return (
+        <foreignObject
+          x={object.x}
+          y={object.y}
+          width={object.width}
+          height={object.height}
+          style={{
+            cursor: object.selected ? 'move' : 'pointer',
+            overflow: 'visible',
+            pointerEvents: currentTool === 'freehand' ? 'none' : 'all'
+          }}
+          onClick={handleClick}
+        >
+          <YouTubeVideoWidget
+            video={youtubeObj}
+            isSelected={object.selected}
+            zoom={viewport?.zoom || 1}
+            onUpdate={handleYouTubeUpdate}
+            onSelect={() => {}} // Handled by foreignObject
+            onContextMenu={onContextMenu || (() => {})}
+            onStartDrag={(e, id) => {
+              if (onStartDrag && viewport && canvasSize) {
+                // Get the mouse position relative to the canvas
+                const rect = (e.target as Element).closest('svg')?.getBoundingClientRect();
+                if (rect) {
+                  const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+                  // Convert to world coordinates using proper viewport transformation
+                  const worldPoint = {
+                    x: viewport.x + (screenPoint.x - canvasSize.width / 2) / viewport.zoom,
+                    y: viewport.y + (screenPoint.y - canvasSize.height / 2) / viewport.zoom
+                  };
+                  
+                  onStartDrag(id, worldPoint);
+                }
+              }
+            }}
           />
         </foreignObject>
       );
