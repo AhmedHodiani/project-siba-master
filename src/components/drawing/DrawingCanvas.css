@@ -94,7 +94,28 @@
   animation: slideInRight 0.3s ease-out;
 }
 
-/* When both panels are visible, adjust positioning */
+/* Emoji Properties Panel Positioning */
+.emoji-properties-container {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 20;
+  animation: slideInRight 0.3s ease-out;
+}
+
+/* When multiple panels are visible, adjust positioning */
 .brush-properties-container ~ .sticky-note-properties-container {
   top: 380px; /* Move sticky note panel below brush panel when both are visible */
+}
+
+.brush-properties-container ~ .emoji-properties-container {
+  top: 380px; /* Move emoji panel below brush panel when both are visible */
+}
+
+.sticky-note-properties-container ~ .emoji-properties-container {
+  top: 380px; /* Move emoji panel below sticky note panel when both are visible */
+}
+
+.brush-properties-container ~ .sticky-note-properties-container ~ .emoji-properties-container {
+  top: 760px; /* Move emoji panel further down when all three are visible */
 }

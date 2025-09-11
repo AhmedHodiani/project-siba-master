@@ -36,7 +36,8 @@ export type DrawingObjectType =
   | 'freehand'
   | 'sticky-note'
   | 'image'
-  | 'youtube-video';
+  | 'youtube-video'
+  | 'emoji';
 
 export interface BaseDrawingObject {
   id: string;
@@ -106,13 +107,21 @@ export interface YouTubeVideoObject extends BaseDrawingObject {
   height: number;
 }
 
+export interface EmojiObject extends BaseDrawingObject {
+  type: 'emoji';
+  emoji: string;        // The emoji character
+  width: number;        // Width in pixels
+  height: number;       // Height in pixels
+}
+
 export type DrawingObject = 
   | FlashcardObject
   | TranslationObject
   | FreehandObject
   | StickyNoteObject
   | ImageObject
-  | YouTubeVideoObject;
+  | YouTubeVideoObject
+  | EmojiObject;
 
 export type ToolType = 
   | 'select' 
@@ -121,7 +130,8 @@ export type ToolType =
   | 'freehand'
   | 'sticky-note'
   | 'image'
-  | 'youtube-video';
+  | 'youtube-video'
+  | 'emoji';
 
 export interface DrawingState {
   objects: DrawingObject[];
@@ -258,6 +268,11 @@ export function drawingObjectToRecord(object: DrawingObject, canvasId: string): 
         width: (object as YouTubeVideoObject).width,
         height: (object as YouTubeVideoObject).height,
       }),
+      ...(object.type === 'emoji' && {
+        emoji: (object as EmojiObject).emoji,
+        width: (object as EmojiObject).width,
+        height: (object as EmojiObject).height,
+      }),
     },
     complexity_score: calculateComplexityScore(object),
   };
@@ -354,6 +369,15 @@ export function recordToDrawingObject(record: CanvasObjectRecord): DrawingObject
         height: record.object_data.height ?? 315,
       } as YouTubeVideoObject;
 
+    case 'emoji':
+      return {
+        ...baseObject,
+        type: 'emoji',
+        emoji: record.object_data.emoji ?? '😀',
+        width: record.object_data.width ?? 48,
+        height: record.object_data.height ?? 48,
+      } as EmojiObject;
+
     default:
       throw new Error(`Unknown object type: ${record.type}`);
   }
@@ -374,6 +398,10 @@ function calculateComplexityScore(object: DrawingObject): number {
       return 10; // Fixed complexity for flashcards
     case 'image':
       return 5; // Fixed complexity for images
+    case 'youtube-video':
+      return 8; // Fixed complexity for YouTube videos
+    case 'emoji':
+      return 1; // Low complexity for emojis
     default:
       return 1;
   }

@@ -37,6 +37,10 @@ export const DrawingMode = React.forwardRef<DrawingModeRef, DrawingModeProps>(({
   const [isSavingViewport, setIsSavingViewport] = useState(false);
   const [isSavingObject, setIsSavingObject] = useState(false);
   
+  // Debouncing system for object updates
+  const pendingUpdates = useRef<Map<string, { object: DrawingObject; timeout: NodeJS.Timeout }>>(new Map());
+  const DEBOUNCE_DELAY = 300; // 300ms delay
+  
   // Load canvases from database when component mounts or movieId changes
   useEffect(() => {
     const loadCanvases = async () => {
@@ -381,7 +385,27 @@ export const DrawingMode = React.forwardRef<DrawingModeRef, DrawingModeProps>(({
     }
   };
 
-  const handleObjectUpdated = async (objectId: string, updates: Partial<DrawingObject>): Promise<void> => {
+  // Debounced database update function
+  const debouncedDatabaseUpdate = useCallback(async (objectId: string, updatedObject: DrawingObject): Promise<void> => {
+    if (!canvasState.activeCanvasId) return;
+
+    try {
+      const objectData = drawingObjectToRecord(updatedObject, canvasState.activeCanvasId);
+      
+      await pocketBaseService.updateCanvasObject(objectId, {
+        x: objectData.x,
+        y: objectData.y,
+        object_data: objectData.object_data
+      });
+      
+      console.log('Database updated successfully for object:', objectId);
+    } catch (error) {
+      console.error('Failed to update object in database:', error);
+      // Don't throw the error to avoid disrupting the UI
+    }
+  }, [canvasState.activeCanvasId]);
+
+  const handleObjectUpdated = useCallback(async (objectId: string, updates: Partial<DrawingObject>): Promise<void> => {
     console.log('=== HANDLE OBJECT UPDATED CALLED ===', { objectId, updates, activeCanvasId: canvasState.activeCanvasId });
     
     if (!canvasState.activeCanvasId) {
@@ -390,8 +414,6 @@ export const DrawingMode = React.forwardRef<DrawingModeRef, DrawingModeProps>(({
     }
 
     try {
-      console.log('Updating object in database:', objectId, updates);
-      
       // Get the current object from local state
       const currentCanvas = getCurrentCanvas();
       const currentObject = currentCanvas?.objects.find(obj => obj.id === objectId);
@@ -402,20 +424,8 @@ export const DrawingMode = React.forwardRef<DrawingModeRef, DrawingModeProps>(({
 
       // Merge updates with current object
       const updatedObject = { ...currentObject, ...updates } as DrawingObject;
-      const objectData = drawingObjectToRecord(updatedObject, canvasState.activeCanvasId);
       
-      console.log('Converted object data for database:', objectData);
-      
-      // For now, update all fields (we can optimize later to only send changed fields)
-      await pocketBaseService.updateCanvasObject(objectId, {
-        x: objectData.x,
-        y: objectData.y,
-        object_data: objectData.object_data
-      });
-      
-      console.log('Successfully updated object in database');
-      
-      // Update local state
+      // Update local state immediately for responsiveness
       setCanvasState(prev => ({
         ...prev,
         canvases: prev.canvases.map(canvas =>
@@ -430,13 +440,26 @@ export const DrawingMode = React.forwardRef<DrawingModeRef, DrawingModeProps>(({
             : canvas
         )
       }));
+
+      // Debounce database updates to prevent rapid-fire requests
+      const existingUpdate = pendingUpdates.current.get(objectId);
+      if (existingUpdate) {
+        clearTimeout(existingUpdate.timeout);
+      }
+
+      const timeout = setTimeout(() => {
+        debouncedDatabaseUpdate(objectId, updatedObject);
+        pendingUpdates.current.delete(objectId);
+      }, DEBOUNCE_DELAY);
+
+      pendingUpdates.current.set(objectId, { object: updatedObject, timeout });
       
-      console.log('Object updated successfully:', objectId);
+      console.log('Object updated locally, database update scheduled:', objectId);
     } catch (error) {
       console.error('Failed to update object:', error);
       throw error;
     }
-  };
+  }, [canvasState.activeCanvasId, getCurrentCanvas, debouncedDatabaseUpdate]);
 
   const handleObjectDeleted = async (objectId: string): Promise<void> => {
     try {
@@ -563,6 +586,17 @@ export const DrawingMode = React.forwardRef<DrawingModeRef, DrawingModeProps>(({
       clearTimeout(timeoutId);
     };
   }, [canvasState.activeCanvasId]); // Re-run when active canvas changes
+
+  // Cleanup pending updates on unmount or canvas change
+  useEffect(() => {
+    return () => {
+      // Clear all pending timeouts when component unmounts or canvas changes
+      pendingUpdates.current.forEach(({ timeout }) => {
+        clearTimeout(timeout);
+      });
+      pendingUpdates.current.clear();
+    };
+  }, [canvasState.activeCanvasId]);
 
   // Loading state
   if (isLoading) {

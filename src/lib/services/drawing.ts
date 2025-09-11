@@ -139,6 +139,20 @@ export class DrawingUtils {
           }
         };
 
+      case 'emoji':
+        return {
+          ...baseObject,
+          type: 'emoji',
+          emoji: '😀', // Default emoji
+          width: 48, // Default width in pixels
+          height: 48, // Default height in pixels
+          style: {
+            ...baseObject.style,
+            fill: 'transparent',
+            stroke: 'transparent'
+          }
+        };
+
       default:
         throw new Error(`Unknown object type: ${data.type}`);
     }
@@ -197,6 +211,14 @@ export class DrawingUtils {
         };
 
       case 'youtube-video':
+        return {
+          x: obj.x,
+          y: obj.y,
+          width: obj.width,
+          height: obj.height
+        };
+
+      case 'emoji':
         return {
           x: obj.x,
           y: obj.y,

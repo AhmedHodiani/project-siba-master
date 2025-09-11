@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { DrawingObject, ToolType, Point, DrawingState, Canvas } from '../../lib/types/drawing';
+import { DrawingObject, ToolType, Point, DrawingState, Canvas, EmojiObject } from '../../lib/types/drawing';
 import { FlashcardRecord } from '../../lib/types/database';
 import { DrawingUtils } from '../../lib/services/drawing';
 import pocketBaseService from '../../lib/services/pocketbase';
@@ -10,6 +10,7 @@ import { FlashcardPickerDialog } from './FlashcardPickerDialog';
 import { ContextMenu } from './ContextMenu';
 import { BrushPropertiesPanel } from './BrushPropertiesPanel';
 import { StickyNotePropertiesPanel } from './StickyNotePropertiesPanel';
+import { EmojiPropertiesPanel } from './EmojiPropertiesPanel';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { YouTubeUrlDialog } from './YouTubeUrlDialog';
 import './DrawingCanvas.css';
@@ -138,6 +139,11 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
     paperColor: '#ffd700',
     fontColor: '#333333',
     fontSize: 16
+  });
+
+  // Emoji properties state
+  const [emojiProperties, setEmojiProperties] = useState({
+    currentEmoji: '😀'
   });
   
   // Straight line drawing state
@@ -361,6 +367,31 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
           ...prev,
           selectedTool: 'select'
         }));
+        
+      } else if (drawingState.selectedTool === 'emoji') {
+        // Create emoji object with current emoji from properties
+        const newObject = DrawingUtils.createObject({
+          type: 'emoji',
+          startPoint: worldPoint
+        }) as EmojiObject;
+        
+        // Apply current emoji selection
+        newObject.emoji = emojiProperties.currentEmoji;
+        
+        console.log('Created emoji object:', newObject);
+        
+        // Switch back to select tool
+        setDrawingState(prev => ({
+          ...prev,
+          selectedTool: 'select'
+        }));
+        
+        // Save to database - object will be added to state when it comes back with DB ID
+        if (onObjectCreated) {
+          onObjectCreated(newObject).catch(error => {
+            console.error('Failed to save emoji object:', error);
+          });
+        }
         
       } else if (drawingState.selectedTool === 'freehand') {
         // Start freehand drawing immediately - ignore object interactions
@@ -1407,6 +1438,31 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
     });
   }, [onObjectUpdated]);
 
+  const handleEmojiChange = useCallback((emoji: string) => {
+    setEmojiProperties(prev => ({ ...prev, currentEmoji: emoji }));
+    // Update selected emoji objects
+    setDrawingState(prev => {
+      const updatedObjects = prev.objects.map(obj => {
+        if (obj.selected && obj.type === 'emoji') {
+          const updatedObj = { ...obj, emoji: emoji };
+          // Save to database immediately
+          if (onObjectUpdated) {
+            onObjectUpdated(obj.id, { emoji: emoji }).catch(error => {
+              console.error('Failed to save emoji:', error);
+            });
+          }
+          return updatedObj;
+        }
+        return obj;
+      });
+      
+      return {
+        ...prev,
+        objects: updatedObjects
+      };
+    });
+  }, [onObjectUpdated]);
+
   // Calculate current transform for real-time visual feedback during drag
   const currentTransform = isDragging 
     ? `translate(${dragOffset.x}px, ${dragOffset.y}px)`
@@ -1458,6 +1514,17 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
             onPaperColorChange={handlePaperColorChange}
             onFontColorChange={handleFontColorChange}
             onFontSizeChange={handleFontSizeChange}
+          />
+        </div>
+      )}
+
+      {/* Emoji Properties Panel - show when emoji tool is selected or an emoji is selected */}
+      {(drawingState.selectedTool === 'emoji' || 
+        drawingState.objects.some(obj => obj.selected && obj.type === 'emoji')) && (
+        <div className="emoji-properties-container">
+          <EmojiPropertiesPanel
+            currentEmoji={emojiProperties.currentEmoji}
+            onEmojiChange={handleEmojiChange}
           />
         </div>
       )}

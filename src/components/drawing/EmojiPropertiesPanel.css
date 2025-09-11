@@ -1,0 +1,112 @@
+.emoji-properties-panel {
+  width: 360px;
+  background: rgba(20, 20, 20, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  max-height: 70vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.emoji-properties-panel h3 {
+  margin: 0 0 20px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  text-align: center;
+}
+
+.emoji-categories {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+/* Custom scrollbar for dark theme */
+.emoji-categories::-webkit-scrollbar {
+  width: 6px;
+}
+
+.emoji-categories::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.emoji-categories::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+.emoji-categories::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.emoji-category {
+  margin-bottom: 20px;
+}
+
+.category-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #cccccc;
+  margin: 0 0 12px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 8px 12px;
+  background: rgba(0, 122, 204, 0.1);
+  border-radius: 6px;
+  border: 1px solid rgba(0, 122, 204, 0.2);
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+
+.emoji-option {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 8px;
+  font-size: 18px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+  line-height: 1;
+}
+
+.emoji-option:hover {
+  background: rgba(0, 122, 204, 0.2);
+  border-color: #007acc;
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(0, 122, 204, 0.3);
+}
+
+.emoji-option.selected {
+  background: #007acc;
+  border-color: #005999;
+  transform: scale(1.1);
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.4);
+}
+
+/* Responsive adjustments */
+@media (max-width: 320px) {
+  .emoji-properties-panel {
+    width: 100%;
+    padding: 16px;
+  }
+  
+  .emoji-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

@@ -146,7 +146,7 @@ export interface MovieCanvasRecord extends BaseRecord {
 
 export interface CanvasObjectRecord extends BaseRecord {
   canvas_id: string;          // Foreign key to movie_canvases
-  type: 'freehand' | 'sticky-note' | 'flashcard' | 'translation' | 'image' | 'youtube-video';
+  type: 'freehand' | 'sticky-note' | 'flashcard' | 'translation' | 'image' | 'youtube-video' | 'emoji';
   x: number;                  // Object position X
   y: number;                  // Object position Y
   z_index: number;            // Layer order
@@ -177,7 +177,7 @@ export interface UpdateCanvasData {
 // Type for creating new canvas objects
 export interface CreateCanvasObjectData {
   canvas_id: string;
-  type: 'freehand' | 'sticky-note' | 'flashcard' | 'translation' | 'image' | 'youtube-video';
+  type: 'freehand' | 'sticky-note' | 'flashcard' | 'translation' | 'image' | 'youtube-video' | 'emoji';
   x: number;
   y: number;
   z_index: number;
@@ -188,7 +188,7 @@ export interface CreateCanvasObjectData {
 
 // Type for updating canvas objects
 export interface UpdateCanvasObjectData {
-  type?: 'freehand' | 'sticky-note' | 'flashcard' | 'translation' | 'image' | 'youtube-video';
+  type?: 'freehand' | 'sticky-note' | 'flashcard' | 'translation' | 'image' | 'youtube-video' | 'emoji';
   x?: number;
   y?: number;
   z_index?: number;
