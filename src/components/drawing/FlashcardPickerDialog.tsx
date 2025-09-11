@@ -20,6 +20,7 @@ export const FlashcardPickerDialog: React.FC<FlashcardPickerDialogProps> = ({
   const [flashcards, setFlashcards] = useState<FlashcardRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedFlashcard, setSelectedFlashcard] = useState<FlashcardRecord | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Format time in mm:ss
   const formatTime = (seconds: number): string => {
@@ -78,13 +79,91 @@ export const FlashcardPickerDialog: React.FC<FlashcardPickerDialogProps> = ({
     return { label: `Due in ${diffDays}d`, color: '#6c757d' };
   };
 
+  // Filter flashcards based on search query
+  const filteredFlashcards = flashcards.filter(flashcard => {
+    if (!searchQuery) return true;
+    
+    const query = searchQuery.toLowerCase();
+    
+    // Search in subtitle text
+    const subtitle = flashcard.subtitle_text?.toLowerCase() || '';
+    if (subtitle.includes(query)) return true;
+    
+    // Search in timing (formatted as mm:ss)
+    const startTime = formatTime(flashcard.start_time);
+    const endTime = formatTime(flashcard.end_time);
+    if (startTime.includes(query) || endTime.includes(query)) return true;
+    
+    // Search in state
+    const state = getStateLabel(flashcard.state).toLowerCase();
+    if (state.includes(query)) return true;
+    
+    // Search in due status
+    const dueStatus = getDueStatus(flashcard.due);
+    if (dueStatus.label.toLowerCase().includes(query)) return true;
+    
+    return false;
+  });
+
+  // Helper function to highlight search matches in text
+  const highlightSearchMatch = (text: string, searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      return <span>{text}</span>;
+    }
+
+    const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+
+    return (
+      <span>
+        {parts.map((part, index) => 
+          regex.test(part) ? (
+            <span key={index} className="search-highlight-text">
+              {part}
+            </span>
+          ) : (
+            <span key={index}>{part}</span>
+          )
+        )}
+      </span>
+    );
+  };
+
+  // Clear search when dialog closes
+  useEffect(() => {
+    if (!isOpen) {
+      setSearchQuery('');
+      setSelectedFlashcard(null);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
     <div className="flashcard-picker-overlay">
       <div className="flashcard-picker-dialog">
         <div className="flashcard-picker-header">
-          <h3>Select a Flashcard to Add</h3>
+          <div className="flashcard-picker-header-content">
+            <h3>Select a Flashcard to Add</h3>
+            <div className="flashcard-search-container">
+              <input
+                type="text"
+                placeholder="Search flashcards..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flashcard-search-input"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="flashcard-search-clear"
+                  title="Clear search"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
           <Button onClick={onClose} variant="secondary" size="small">
             ✕
           </Button>
@@ -100,9 +179,18 @@ export const FlashcardPickerDialog: React.FC<FlashcardPickerDialogProps> = ({
               <p>No flashcards found for this movie.</p>
               <p>Create some flashcards in Movie Study mode first!</p>
             </div>
+          ) : filteredFlashcards.length === 0 ? (
+            <div className="flashcard-picker-empty">
+              <p>No flashcards match your search: "{searchQuery}"</p>
+              <p>Try a different search term or clear the search.</p>
+            </div>
           ) : (
             <div className="flashcard-picker-list">
-              {flashcards.map((flashcard) => {
+              <div className="flashcard-picker-results-info">
+                Showing {filteredFlashcards.length} of {flashcards.length} flashcards
+                {searchQuery && <span className="search-highlight"> for "{searchQuery}"</span>}
+              </div>
+              {filteredFlashcards.map((flashcard) => {
                 const dueStatus = getDueStatus(flashcard.due);
                 const isSelected = selectedFlashcard?.id === flashcard.id;
                 
@@ -114,7 +202,7 @@ export const FlashcardPickerDialog: React.FC<FlashcardPickerDialogProps> = ({
                   >
                     <div className="flashcard-content">
                       <div className="flashcard-subtitle">
-                        "{flashcard.subtitle_text}"
+                        "{highlightSearchMatch(flashcard.subtitle_text || '', searchQuery)}"
                       </div>
                       
                       <div className="flashcard-metadata">
