@@ -228,7 +228,7 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
     if (!svgRef.current) return;
     
     const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-    const newZoom = Math.max(0.1, Math.min(5, viewport.zoom * zoomFactor));
+    const newZoom = Math.max(0.001, Math.min(20, viewport.zoom * zoomFactor));
     
     // Get mouse position relative to SVG
     const rect = svgRef.current.getBoundingClientRect();
@@ -1443,7 +1443,7 @@ export const DrawingCanvas = forwardRef<any, DrawingCanvasProps>(({
         />
 
         {/* Dynamic infinite grid lines */}
-        {gridLines}
+        {viewport.zoom > 0.1 && gridLines}
 
         {/* X Axis - extend across current view */}
         <line
